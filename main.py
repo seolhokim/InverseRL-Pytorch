@@ -1,6 +1,6 @@
 from utils import RunningMeanStd
 from agent import PPO
-from discriminator import GAILDiscriminator
+from discriminator import GAILDiscriminator,VAILDiscriminator
 
 import gym
 import numpy as np
@@ -24,6 +24,7 @@ gamma         = 0.99
 lmbda         = 0.95
 eps_clip      = 0.2
 K_epoch       = 10
+z_dim = 128
 hidden_size = 64
 ppo_batch_size = 64
 discriminator_batch_size = 64
@@ -37,12 +38,14 @@ if torch.cuda.is_available():
     agent = PPO(writer,device,state_space,action_space,hidden_size,expert_state_location,expert_action_location,\
                entropy_coef,critic_coef,ppo_lr,gamma,lmbda,eps_clip,\
                 K_epoch,ppo_batch_size,discriminator_batch_size).cuda()
-    discriminator = GAILDiscriminator(writer,device,state_space, action_space, hidden_dim,discriminator_lr).cuda()
+    #discriminator = GAILDiscriminator(writer,device,state_space, action_space, hidden_dim,discriminator_lr).cuda()
+    discriminator = VAILDiscriminator(writer,device,state_space, action_space, hidden_dim,z_dim,discriminator_lr).cuda()
 else:
     agent = PPO(writer,device,state_space,action_space,hidden_size,expert_state_location,expert_action_location,\
                entropy_coef,critic_coef,ppo_lr,gamma,lmbda,eps_clip,\
                 K_epoch,ppo_batch_size,discriminator_batch_size)
-    discriminator = GAILDiscriminator(writer,device,state_space, action_space, hidden_dim,discriminator_lr)
+    discriminator = VAILDiscriminator(writer,device,state_space, action_space, hidden_dim,z_dim,discriminator_lr)
+    #discriminator = GAILDiscriminator(writer,device,state_space, action_space, hidden_dim,discriminator_lr).cuda()
 state_rms = RunningMeanStd(state_space)
 
 
