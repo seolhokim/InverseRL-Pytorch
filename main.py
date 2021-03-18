@@ -26,7 +26,7 @@ eps_clip      = 0.2
 K_epoch       = 10
 hidden_size = 64
 ppo_batch_size = 64
-discriminator_batch_size = 16
+discriminator_batch_size = 64
 
 T_horizon     = 2048
 
