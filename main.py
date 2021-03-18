@@ -15,7 +15,7 @@ state_space = env.observation_space.shape[0]
 hidden_dim = 64
 
 expert_state_location = './expert_data/expert_states.npy'
-expert_action_location = './expert_data//expert_actions.npy'
+expert_action_location = './expert_data/expert_actions.npy'
 entropy_coef = 1e-2
 critic_coef = 0.5
 ppo_lr = 0.0003
@@ -24,9 +24,9 @@ gamma         = 0.99
 lmbda         = 0.95
 eps_clip      = 0.2
 K_epoch       = 10
-
+hidden_size = 64
 ppo_batch_size = 64
-discriminator_batch_size = 1024
+discriminator_batch_size = 16
 
 T_horizon     = 2048
 
@@ -34,12 +34,12 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 writer = SummaryWriter()
 if torch.cuda.is_available():
-    agent = PPO(writer,device,state_space,action_space,hidden_dim,expert_state_location,expert_action_location,\
+    agent = PPO(writer,device,state_space,action_space,hidden_size,expert_state_location,expert_action_location,\
                entropy_coef,critic_coef,ppo_lr,gamma,lmbda,eps_clip,\
                 K_epoch,ppo_batch_size,discriminator_batch_size).cuda()
     discriminator = GAILDiscriminator(writer,device,state_space, action_space, hidden_dim,discriminator_lr).cuda()
 else:
-    agent = PPO(writer,device,state_space,action_space,expert_state_location,expert_action_location,\
+    agent = PPO(writer,device,state_space,action_space,hidden_size,expert_state_location,expert_action_location,\
                entropy_coef,critic_coef,ppo_lr,gamma,lmbda,eps_clip,\
                 K_epoch,ppo_batch_size,discriminator_batch_size)
     discriminator = GAILDiscriminator(writer,device,state_space, action_space, hidden_dim,discriminator_lr)
