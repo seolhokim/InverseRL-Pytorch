@@ -24,10 +24,10 @@ gamma         = 0.99
 lmbda         = 0.95
 eps_clip      = 0.2
 K_epoch       = 10
-z_dim = 128
+z_dim = 4
 hidden_size = 64
 ppo_batch_size = 64
-discriminator_batch_size = 64
+discriminator_batch_size = 512
 
 T_horizon     = 2048
 
