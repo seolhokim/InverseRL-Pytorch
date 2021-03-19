@@ -89,15 +89,10 @@ class VAILDiscriminator(nn.Module):
         x = torch.relu(self.fc2(x))
         mu = self.mu(x)
         sigma = self.sigma(x)
-        #z = mu + torch.normal(torch.zeros(mu.shape),torch.ones(mu.shape)) * torch.exp(sigma)
         std = torch.exp(sigma/2)
         eps = torch.randn_like(std)
-        
         return  mu + std * eps,mu,sigma
         
-        #std = torch.exp(0.5* sigma)
-        #normal = Normal(mu,std)
-        #return normal.rsample(),mu,sigma
         
     def get_reward(self,state,action):
         x = torch.cat((state,action),-1)
@@ -107,15 +102,11 @@ class VAILDiscriminator(nn.Module):
         x = torch.sigmoid(self.fc3(torch.relu(mu)))+ 1e-8
         
         return -torch.log(x).detach()
-        '''
-        x = self.forward(x)
-        return -torch.log(x).detach()
-        '''
     def kl_divergence(self,mu, logvar):
         kl_div = 0.5 * torch.sum(mu.pow(2) + logvar.exp() - logvar - 1, dim=1)
         return kl_div
     def get_latent_kl_div(self,mu,logvar):
-        return torch.sum(-logvar+(torch.square(mu)+torch.square(torch.exp(logvar))-1.)/2.,-1)
+        return torch.mean(-logvar+(torch.square(mu)+torch.square(torch.exp(logvar))-1.)/2.)
     def train(self,n_epi,agent_s,agent_a,expert_s,expert_a):
         for i in range(3):
             expert_cat = torch.cat((torch.tensor(expert_s),torch.tensor(expert_a)),-1)
@@ -143,20 +134,17 @@ class VAILDiscriminator(nn.Module):
             bottleneck_loss = kld -  self.mutual_info_constraint
             '''
             
-            l_kld = self.get_latent_kl_div(expert_mu,expert_std)
-            l_kld = l_kld.mean()
+            expert_bottleneck_loss = self.get_latent_kl_div(expert_mu,expert_std)
             
-            e_kld = self.get_latent_kl_div(agent_mu,agent_std)
-            e_kld = e_kld.mean()
+            agent_bottleneck_loss = self.get_latent_kl_div(agent_mu,agent_std)
             
-            kld = 0.5 * (l_kld + e_kld)
-            bottleneck_loss = kld -  self.mutual_info_constraint
+            bottleneck_loss = 0.5 * (expert_bottleneck_loss + agent_bottleneck_loss)
+            bottleneck_loss = bottleneck_loss -  self.mutual_info_constraint
             
             print("bottleneck_loss : ",bottleneck_loss)
-            #print("(bottleneck_loss) *self.beta : ",(bottleneck_loss) *self.beta)
             
             self.beta = max(0,self.beta + self.dual_stepsize * bottleneck_loss.detach())
-            loss = expert_loss+agent_loss + (bottleneck_loss) *self.beta
+            loss = expert_loss + agent_loss + (bottleneck_loss) * self.beta
 
 
             expert_acc = ((expert_preds < 0.5).float()).mean()
