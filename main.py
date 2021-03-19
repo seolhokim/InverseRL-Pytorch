@@ -27,28 +27,40 @@ K_epoch       = 10
 z_dim = 4
 hidden_size = 64
 ppo_batch_size = 64
-discriminator_batch_size = 512
+GAIL_batch_size = 64
+VAIL_batch_size = 512
 
 T_horizon     = 2048
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
+is_vail = True
+
 writer = SummaryWriter()
 if torch.cuda.is_available():
-    agent = PPO(writer,device,state_space,action_space,hidden_size,expert_state_location,expert_action_location,\
-               entropy_coef,critic_coef,ppo_lr,gamma,lmbda,eps_clip,\
-                K_epoch,ppo_batch_size,discriminator_batch_size).cuda()
-    #discriminator = GAILDiscriminator(writer,device,state_space, action_space, hidden_dim,discriminator_lr).cuda()
-    discriminator = VAILDiscriminator(writer,device,state_space, action_space, hidden_dim,z_dim,discriminator_lr).cuda()
+    if is_vail == True : 
+        agent = PPO(writer,device,state_space,action_space,hidden_size,expert_state_location,expert_action_location,\
+                   entropy_coef,critic_coef,ppo_lr,gamma,lmbda,eps_clip,\
+                    K_epoch,ppo_batch_size,VAIL_batch_size).cuda()
+        discriminator = VAILDiscriminator(writer,device,state_space, action_space, hidden_dim,z_dim,discriminator_lr).cuda()
+    else:
+        agent = PPO(writer,device,state_space,action_space,hidden_size,expert_state_location,expert_action_location,\
+                   entropy_coef,critic_coef,ppo_lr,gamma,lmbda,eps_clip,\
+                    K_epoch,ppo_batch_size,GAIL_batch_size).cuda()
+        discriminator = GAILDiscriminator(writer,device,state_space, action_space, hidden_dim,discriminator_lr).cuda()
 else:
-    agent = PPO(writer,device,state_space,action_space,hidden_size,expert_state_location,expert_action_location,\
-               entropy_coef,critic_coef,ppo_lr,gamma,lmbda,eps_clip,\
-                K_epoch,ppo_batch_size,discriminator_batch_size)
-    discriminator = VAILDiscriminator(writer,device,state_space, action_space, hidden_dim,z_dim,discriminator_lr)
-    #discriminator = GAILDiscriminator(writer,device,state_space, action_space, hidden_dim,discriminator_lr).cuda()
+    if is_vail == True : 
+        agent = PPO(writer,device,state_space,action_space,hidden_size,expert_state_location,expert_action_location,\
+                   entropy_coef,critic_coef,ppo_lr,gamma,lmbda,eps_clip,\
+                    K_epoch,ppo_batch_size,VAIL_batch_size)
+        discriminator = VAILDiscriminator(writer,device,state_space, action_space, hidden_dim,z_dim,discriminator_lr)
+    else:
+        agent = PPO(writer,device,state_space,action_space,hidden_size,expert_state_location,expert_action_location,\
+                   entropy_coef,critic_coef,ppo_lr,gamma,lmbda,eps_clip,\
+                    K_epoch,ppo_batch_size,GAIL_batch_size)
+        discriminator = GAILDiscriminator(writer,device,state_space, action_space, hidden_dim,discriminator_lr)
+
 state_rms = RunningMeanStd(state_space)
-
-
 print_interval = 20
 global_step = 0
 render = False

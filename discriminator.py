@@ -102,9 +102,6 @@ class VAILDiscriminator(nn.Module):
         x = torch.sigmoid(self.fc3(torch.relu(mu)))+ 1e-8
         
         return -torch.log(x).detach()
-    def kl_divergence(self,mu, logvar):
-        kl_div = 0.5 * torch.sum(mu.pow(2) + logvar.exp() - logvar - 1, dim=1)
-        return kl_div
     def get_latent_kl_div(self,mu,logvar):
         return torch.mean(-logvar+(torch.square(mu)+torch.square(torch.exp(logvar))-1.)/2.)
     def train(self,n_epi,agent_s,agent_a,expert_s,expert_a):
@@ -117,22 +114,6 @@ class VAILDiscriminator(nn.Module):
             agent_cat = torch.cat((agent_s,agent_a),-1)
             agent_preds,agent_mu,agent_std = self.forward(agent_cat.float().to(self.device),get_dist = True)
             agent_loss = self.criterion(agent_preds,torch.ones(agent_preds.shape[0],1).to(self.device))
-            '''
-            expert_bottleneck_loss = (kl_divergence(Normal(expert_mu,expert_std),self.r))
-            agent_bottleneck_loss = (kl_divergence(Normal(agent_mu,agent_std),self.r))
-
-            bottleneck_loss = torch.sum(0.5 * (expert_bottleneck_loss + agent_bottleneck_loss),-1).mean() -  self.mutual_info_constraint
-            '''
-            '''
-            l_kld = self.kl_divergence(expert_mu,expert_std)
-            l_kld = l_kld.mean()
-            
-            e_kld = self.kl_divergence(agent_mu,agent_std)
-            e_kld = e_kld.mean()
-            
-            kld = 0.5 * (l_kld + e_kld)
-            bottleneck_loss = kld -  self.mutual_info_constraint
-            '''
             
             expert_bottleneck_loss = self.get_latent_kl_div(expert_mu,expert_std)
             
@@ -141,7 +122,6 @@ class VAILDiscriminator(nn.Module):
             bottleneck_loss = 0.5 * (expert_bottleneck_loss + agent_bottleneck_loss)
             bottleneck_loss = bottleneck_loss -  self.mutual_info_constraint
             
-            print("bottleneck_loss : ",bottleneck_loss)
             
             self.beta = max(0,self.beta + self.dual_stepsize * bottleneck_loss.detach())
             loss = expert_loss + agent_loss + (bottleneck_loss) * self.beta
@@ -149,8 +129,6 @@ class VAILDiscriminator(nn.Module):
 
             expert_acc = ((expert_preds < 0.5).float()).mean()
             learner_acc = ((agent_preds > 0.5).float()).mean()
-            print("expert_acc :",expert_acc) 
-            print("learner_acc : ",learner_acc)
             if self.writer != None:
                 self.writer.add_scalar("loss/discriminator_loss", loss.item(), n_epi)
             if (expert_acc > 0.8) and (learner_acc > 0.8):
