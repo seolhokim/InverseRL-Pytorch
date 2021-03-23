@@ -6,6 +6,7 @@ import torch.optim as optim
 import numpy as np
 
 from network import Actor, Critic
+from utils import Rollouts
 
 class PPO(nn.Module):
     def __init__(self,writer,device,state_dim,action_dim,hidden_dim,\
@@ -16,7 +17,7 @@ class PPO(nn.Module):
         super(PPO, self).__init__()
         self.writer = writer
         self.device = device
-        self.data = []
+        self.data = Rollouts()
         self.entropy_coef = entropy_coef
         self.critic_coef = critic_coef
         self.ppo_lr = ppo_lr
@@ -35,7 +36,8 @@ class PPO(nn.Module):
         self.actor = Actor(state_dim,action_dim,hidden_dim)
         self.critic = Critic(state_dim,action_dim,hidden_dim)
         
-        self.optimizer = optim.Adam(self.parameters(), lr=self.ppo_lr)
+        self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=ppo_lr)
+        self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=ppo_lr)
         
     def pi(self,x):
         return self.actor(x)
@@ -46,44 +48,13 @@ class PPO(nn.Module):
     def put_data(self,transition):
         self.data.append(transition)
     
-    def make_batch(self,state_rms):
-        s_lst, a_lst, r_lst, s_prime_lst, prob_a_lst, done_lst = [], [], [], [], [], []
-        for transition in self.data:
-            s, a, r, s_prime, prob_a, done = transition
-            
-            s_lst.append(s)
-            a_lst.append(a)
-            r_lst.append([r])
-            s_prime_lst.append(s_prime)
-            prob_a_lst.append(prob_a)
-            done_mask = 0 if done else 1
-            done_lst.append([done_mask])
-            
-        state_rms.update(np.vstack(s_lst))
-        s,a,r,s_prime,done_mask, prob_a = torch.tensor(s_lst, dtype=torch.float).to(self.device), torch.stack(a_lst).to(self.device), \
-                                          torch.tensor(r_lst).to(self.device), torch.tensor(s_prime_lst, dtype=torch.float).to(self.device), \
-                                          torch.tensor(done_lst, dtype=torch.float).to(self.device), torch.tensor(prob_a_lst).to(self.device)
-        self.data = []
-        return s, a, r, s_prime, done_mask, prob_a
     
-    def choose_mini_batch(self, mini_batch_size, states, actions, rewards, next_states, done_mask, old_log_prob, advantages, returns,old_value):
-        full_batch_size = len(states)
-        for _ in range(full_batch_size // mini_batch_size):
-            indices = np.random.randint(0, full_batch_size, mini_batch_size)
-            yield states[indices], actions[indices], rewards[indices], next_states[indices], done_mask[indices],\
-                  old_log_prob[indices], advantages[indices], returns[indices],old_value[indices]
-            
-    def choose_s_a_mini_batch(self, mini_batch_size, states, actions):
-        full_batch_size = len(states)
-        indices = np.random.randint(0, full_batch_size, mini_batch_size)
-        return states[indices], actions[indices]
-    
-    def train(self,discriminator,state_rms,n_epi):
-        s_, a_, r_, s_prime_, done_mask_, old_log_prob_ = self.make_batch(state_rms)
+    def train(self,discriminator,n_epi):
+        s_, a_, r_, s_prime_, done_mask_, old_log_prob_ = self.data.make_batch(self.device)
         self.train_ppo(n_epi,s_, a_, r_, s_prime_, done_mask_, old_log_prob_)
-        agent_s,agent_a = self.choose_s_a_mini_batch(self.discriminator_batch_size,s_,a_)
-        s,a = self.choose_s_a_mini_batch(self.discriminator_batch_size,agent_s,agent_a)
-        expert_s,expert_a = self.choose_s_a_mini_batch(self.discriminator_batch_size,self.expert_states,self.expert_actions)
+        agent_s,agent_a = self.data.choose_s_a_mini_batch(self.discriminator_batch_size,s_,a_)
+        s,a = self.data.choose_s_a_mini_batch(self.discriminator_batch_size,agent_s,agent_a)
+        expert_s,expert_a = self.data.choose_s_a_mini_batch(self.discriminator_batch_size,self.expert_states,self.expert_actions)
         self.train_discriminator(discriminator,n_epi,agent_s,agent_a,expert_s,expert_a)
         
     def train_discriminator(self,discriminator,n_epi,agent_s,agent_a,expert_s,expert_a):
@@ -108,7 +79,7 @@ class PPO(nn.Module):
         returns = advantage_ + self.v(s_)
         advantage_ = (advantage_ - advantage_.mean())/(advantage_.std()+1e-3)
         for i in range(self.K_epoch):
-            for s,a,r,s_prime,done_mask,old_log_prob,advantage,return_,old_value in self.choose_mini_batch(\
+            for s,a,r,s_prime,done_mask,old_log_prob,advantage,return_,old_value in self.data.choose_mini_batch(\
                                                                               self.ppo_batch_size,s_, a_, r_, s_prime_, done_mask_, old_log_prob_,advantage_,returns,old_value_): 
                 curr_mu,curr_sigma = self.pi(s)
                 value = self.v(s).float()
@@ -127,12 +98,16 @@ class PPO(nn.Module):
                 value_loss = (value - return_.detach().float()).pow(2)
                 value_loss_clipped = (old_value_clipped - return_.detach().float()).pow(2)
                 
-                critic_loss = 0.5 * torch.max(value_loss,value_loss_clipped).mean()
+                critic_loss = 0.5 * self.critic_coef * torch.max(value_loss,value_loss_clipped).mean()
                 if self.writer != None:
                     self.writer.add_scalar("loss/actor_loss", actor_loss.item(), n_epi)
                     self.writer.add_scalar("loss/critic_loss", critic_loss.item(), n_epi)
                 
-                loss = actor_loss + self.critic_coef * critic_loss
-                self.optimizer.zero_grad()
-                loss.backward()
-                self.optimizer.step()
+                self.actor_optimizer.zero_grad()
+                actor_loss.backward()
+                self.actor_optimizer.step()
+                
+                self.critic_optimizer.zero_grad()
+                critic_loss.backward()
+                self.critic_optimizer.step()
+                
