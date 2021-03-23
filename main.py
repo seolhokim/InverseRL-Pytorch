@@ -26,14 +26,14 @@ K_epoch       = 10
 z_dim = 4
 hidden_size = 64
 ppo_batch_size = 64
-GAIL_batch_size = 64
+GAIL_batch_size = 512
 VAIL_batch_size = 512
 
 T_horizon     = 2048
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-is_vail = True
+is_vail = False
 
 writer = SummaryWriter()
 if torch.cuda.is_available():
