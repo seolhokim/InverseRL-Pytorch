@@ -29,7 +29,7 @@ class GAILDiscriminator(nn.Module):
         x = torch.cat((state,action),-1)
         x = self.forward(x)
         return -torch.log(x).detach()
-    def train(self,n_epi,agent_s,agent_a,expert_s,expert_a):
+    def train(self,writer,n_epi,agent_s,agent_a,expert_s,expert_a):
         
         
         expert_cat = torch.cat((torch.tensor(expert_s),torch.tensor(expert_a)),-1)

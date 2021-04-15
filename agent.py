@@ -13,7 +13,7 @@ class PPO(nn.Module):
                  expert_state_location,\
                 expert_action_location,\
                 entropy_coef,critic_coef,ppo_lr,gamma,lmbda,eps_clip,\
-                K_epoch,ppo_batch_size,discriminator_batch_size): 
+                K_epoch,ppo_batch_size): 
         super(PPO, self).__init__()
         self.writer = writer
         self.device = device
@@ -26,7 +26,6 @@ class PPO(nn.Module):
         self.eps_clip = eps_clip
         self.K_epoch = K_epoch
         self.ppo_batch_size = ppo_batch_size
-        self.discriminator_batch_size = discriminator_batch_size
         f = open(expert_state_location,'rb')
         self.expert_states = np.concatenate([np.load(f) for _ in range(181)])
         f = open(expert_action_location,'rb')
@@ -49,19 +48,19 @@ class PPO(nn.Module):
         self.data.append(transition)
     
     
-    def train(self,discriminator,n_epi):
+    def train(self,writer,discriminator,discriminator_batch_size,state_rms,n_epi):
         s_, a_, r_, s_prime_, done_mask_, old_log_prob_ = self.data.make_batch(self.device)
-        self.train_ppo(n_epi,s_, a_, r_, s_prime_, done_mask_, old_log_prob_)
-        agent_s,agent_a = self.data.choose_s_a_mini_batch(self.discriminator_batch_size,s_,a_)
-        s,a = self.data.choose_s_a_mini_batch(self.discriminator_batch_size,agent_s,agent_a)
-        expert_s,expert_a = self.data.choose_s_a_mini_batch(self.discriminator_batch_size,self.expert_states,self.expert_actions)
-        self.train_discriminator(discriminator,n_epi,agent_s,agent_a,expert_s,expert_a)
+        self.train_ppo(writer,n_epi,s_, a_, r_, s_prime_, done_mask_, old_log_prob_)
+        agent_s,agent_a = self.data.choose_s_a_mini_batch(discriminator_batch_size,s_,a_)
+        expert_s,expert_a = self.data.choose_s_a_mini_batch(discriminator_batch_size,self.expert_states,self.expert_actions)
+        expert_s = np.clip((expert_s - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5)
+        self.train_discriminator(writer,discriminator,n_epi,agent_s,agent_a,expert_s,expert_a)
         
-    def train_discriminator(self,discriminator,n_epi,agent_s,agent_a,expert_s,expert_a):
-        discriminator.train(n_epi,agent_s,agent_a,expert_s,expert_a)
+    def train_discriminator(self,writer,discriminator,n_epi,agent_s,agent_a,expert_s,expert_a):
+        discriminator.train(writer,n_epi,agent_s,agent_a,expert_s,expert_a)
         
         
-    def train_ppo(self,n_epi,s_, a_, r_, s_prime_, done_mask_, old_log_prob_):
+    def train_ppo(self,writer,n_epi,s_, a_, r_, s_prime_, done_mask_, old_log_prob_):
         old_value_ = self.v(s_).detach()
         td_target = r_ + self.gamma * self.v(s_prime_) * done_mask_
         delta = td_target - old_value_
