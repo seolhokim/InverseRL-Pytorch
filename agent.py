@@ -38,7 +38,7 @@ class PPO(nn.Module):
         f = open(expert_next_state_location,'rb')
         self.expert_next_states = torch.tensor(np.concatenate([np.load(f) for _ in range(file_size)])).float()
         f = open(expert_done_location,'rb')
-        self.expert_dones = torch.tensor(np.concatenate([np.load(f) for _ in range(file_size)])).float()
+        self.expert_dones = torch.tensor(np.concatenate([np.load(f) for _ in range(file_size)])).float().unsqueeze(-1)
         f.close()
         
         self.actor = Actor(state_dim,action_dim,hidden_dim)

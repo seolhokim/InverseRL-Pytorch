@@ -207,8 +207,8 @@ class AIRLDiscriminator(nn.Module):
         loss = expert_loss+agent_loss
         expert_acc = ((expert_preds < 0.5).float()).mean()
         learner_acc = ((agent_preds > 0.5).float()).mean()
-        print("expert_acc : ",expert_acc)
-        print("learner_acc : ",learner_acc)
+        #print("expert_acc : ",expert_acc)
+        #print("learner_acc : ",learner_acc)
         if self.writer != None:
             self.writer.add_scalar("loss/discriminator_loss", loss.item(), n_epi)
         if (expert_acc > 0.8) and (learner_acc > 0.8):
