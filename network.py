@@ -24,7 +24,7 @@ class Actor(nn.Module):
         return mu,std
 
 class Critic(nn.Module):
-    def __init__(self,state_dim,action_dim,hidden_dim):
+    def __init__(self,state_dim,hidden_dim):
         super(Critic, self).__init__()
         self.va_fc1   = nn.Linear(state_dim,hidden_dim)
         self.va_fc2   = nn.Linear(hidden_dim,hidden_dim)

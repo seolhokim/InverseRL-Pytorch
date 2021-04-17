@@ -12,6 +12,7 @@ class PPO(nn.Module):
     def __init__(self,writer,device,state_dim,action_dim,hidden_dim,\
                  expert_state_location,\
                 expert_action_location,\
+                expert_next_state_location,expert_done_location,\
                 entropy_coef,critic_coef,ppo_lr,gamma,lmbda,eps_clip,\
                 K_epoch,ppo_batch_size): 
         super(PPO, self).__init__()
@@ -26,14 +27,22 @@ class PPO(nn.Module):
         self.eps_clip = eps_clip
         self.K_epoch = K_epoch
         self.ppo_batch_size = ppo_batch_size
+        
+        self.max_grad_norm = 0.5
+        file_size = 120
+        
         f = open(expert_state_location,'rb')
-        self.expert_states = np.concatenate([np.load(f) for _ in range(181)])
+        self.expert_states = torch.tensor(np.concatenate([np.load(f) for _ in range(file_size)])).float()
         f = open(expert_action_location,'rb')
-        self.expert_actions = np.concatenate([np.load(f) for _ in range(181)])
+        self.expert_actions = torch.tensor(np.concatenate([np.load(f) for _ in range(file_size)]))
+        f = open(expert_next_state_location,'rb')
+        self.expert_next_states = torch.tensor(np.concatenate([np.load(f) for _ in range(file_size)])).float()
+        f = open(expert_done_location,'rb')
+        self.expert_dones = torch.tensor(np.concatenate([np.load(f) for _ in range(file_size)])).float()
         f.close()
         
         self.actor = Actor(state_dim,action_dim,hidden_dim)
-        self.critic = Critic(state_dim,action_dim,hidden_dim)
+        self.critic = Critic(state_dim,hidden_dim)
         
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=ppo_lr)
         self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=ppo_lr)
@@ -48,18 +57,30 @@ class PPO(nn.Module):
         self.data.append(transition)
     
     
-    def train(self,writer,discriminator,discriminator_batch_size,state_rms,n_epi):
-        s_, a_, r_, s_prime_, done_mask_, old_log_prob_ = self.data.make_batch(self.device)
-        self.train_ppo(writer,n_epi,s_, a_, r_, s_prime_, done_mask_, old_log_prob_)
-        agent_s,agent_a = self.data.choose_s_a_mini_batch(discriminator_batch_size,s_,a_)
-        expert_s,expert_a = self.data.choose_s_a_mini_batch(discriminator_batch_size,self.expert_states,self.expert_actions)
-        expert_s = np.clip((expert_s - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5)
-        self.train_discriminator(writer,discriminator,n_epi,agent_s,agent_a,expert_s,expert_a)
+    def train(self,writer,discriminator,discriminator_batch_size,state_rms,n_epi,airl = False):
+        s_, a_, r_, s_prime_, done_mask_, old_prob_ = self.data.make_batch(self.device)
+        self.train_ppo(writer,n_epi,s_, a_, r_, s_prime_, done_mask_, old_prob_)
+        ####TODO
+        if airl == False:
+            agent_s,agent_a = self.data.choose_s_a_mini_batch(discriminator_batch_size,s_,a_)
+            expert_s,expert_a = self.data.choose_s_a_mini_batch(discriminator_batch_size,self.expert_states,self.expert_actions)
+            
+            expert_s = np.clip((expert_s - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5)
+            self.train_discriminator(writer,discriminator,n_epi,agent_s,agent_a,expert_s,expert_a)
+        else:
+            agent_s,agent_a,agent_next_s,agent_done = self.data.choose_s_a_nexts_old_log_prob_mini_batch(discriminator_batch_size,s_,a_,s_prime_,done_mask_)
+            expert_s,expert_a,expert_next_s,expert_done = self.data.choose_s_a_nexts_old_log_prob_mini_batch(discriminator_batch_size,self.expert_states,self.expert_actions,self.expert_next_states,self.expert_dones) 
+
+            expert_s = np.clip((expert_s - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5)
+            expert_next_s = np.clip((expert_next_s - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5)
+     
+            self.train_airl_discriminator(writer,discriminator,n_epi,agent_s,agent_a,agent_next_s,agent_done,expert_s,expert_a,expert_next_s,expert_done)
+    def train_airl_discriminator(self,writer,discriminator,n_epi,agent_s,agent_a,\
+                            agent_next_s,agent_done,expert_s,expert_a,expert_next_s,expert_done):
+        discriminator.train(writer,n_epi,agent_s,agent_a,agent_next_s,agent_done,expert_s,expert_a,expert_next_s,expert_done)
         
     def train_discriminator(self,writer,discriminator,n_epi,agent_s,agent_a,expert_s,expert_a):
         discriminator.train(writer,n_epi,agent_s,agent_a,expert_s,expert_a)
-        
-        
     def train_ppo(self,writer,n_epi,s_, a_, r_, s_prime_, done_mask_, old_log_prob_):
         old_value_ = self.v(s_).detach()
         td_target = r_ + self.gamma * self.v(s_prime_) * done_mask_
@@ -84,7 +105,7 @@ class PPO(nn.Module):
                 value = self.v(s).float()
                 curr_dist = torch.distributions.Normal(curr_mu,curr_sigma)
                 entropy = curr_dist.entropy() * self.entropy_coef
-                curr_log_prob = curr_dist.log_prob(a).sum(1,keepdim = True)
+                curr_log_prob = curr_dist.log_prob(a).sum(-1,keepdim = True)
                 
                 ratio = torch.exp(curr_log_prob - old_log_prob.detach())
                 
@@ -104,9 +125,11 @@ class PPO(nn.Module):
                 
                 self.actor_optimizer.zero_grad()
                 actor_loss.backward()
+                nn.utils.clip_grad_norm_(self.actor.parameters(), self.max_grad_norm)
                 self.actor_optimizer.step()
                 
                 self.critic_optimizer.zero_grad()
                 critic_loss.backward()
+                nn.utils.clip_grad_norm_(self.critic.parameters(), self.max_grad_norm)
                 self.critic_optimizer.step()
                 

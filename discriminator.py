@@ -104,7 +104,7 @@ class VAILDiscriminator(nn.Module):
         return -torch.log(x).detach()
     def get_latent_kl_div(self,mu,logvar):
         return torch.mean(-logvar+(torch.square(mu)+torch.square(torch.exp(logvar))-1.)/2.)
-    def train(self,n_epi,agent_s,agent_a,expert_s,expert_a):
+    def train(self,writer,n_epi,agent_s,agent_a,expert_s,expert_a):
         for i in range(3):
             expert_cat = torch.cat((torch.tensor(expert_s),torch.tensor(expert_a)),-1)
             expert_preds,expert_mu,expert_std = self.forward(expert_cat.float().to(self.device),get_dist = True)
@@ -136,3 +136,83 @@ class VAILDiscriminator(nn.Module):
             self.optimizer.zero_grad()
             loss.backward(retain_graph=True)
             self.optimizer.step()
+            
+class G(nn.Module):
+    def __init__(self,device,state_dim,action_dim,hidden_dim,state_only = True):
+        super(G,self).__init__()
+        self.device = device
+        self.state_only = state_only
+        if state_only :
+            self.fc1 = nn.Linear(state_dim, hidden_dim)
+        else :
+            self.fc1 = nn.Linear(state_dim + action_dim, hidden_dim)
+        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
+        self.fc3 = nn.Linear(hidden_dim, 1)
+
+        for layer in self.modules():
+            if isinstance(layer, nn.Linear):
+                nn.init.orthogonal_(layer.weight)
+                layer.bias.data.zero_() 
+    def forward(self,state,action):
+        if self.state_only:
+            x = state
+        else:
+            x = torch.cat((state,action),-1)
+        x = torch.tanh(self.fc1(x))
+        x = torch.tanh(self.fc2(x))
+        x = (self.fc3(x))
+        return x
+class H(nn.Module):
+    def __init__(self,device,state_dim,hidden_dim):
+        super(H,self).__init__()
+        self.device = device
+        self.fc1 = nn.Linear(state_dim, hidden_dim)
+        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
+        self.fc3 = nn.Linear(hidden_dim, 1)
+
+        for layer in self.modules():
+            if isinstance(layer, nn.Linear):
+                nn.init.orthogonal_(layer.weight)
+                layer.bias.data.zero_() 
+    def forward(self,state):
+        x = torch.tanh(self.fc1(state))
+        x = torch.tanh(self.fc2(x))
+        x = (self.fc3(x))
+        return x
+    
+class AIRLDiscriminator(nn.Module):
+    def __init__(self, writer, device, state_dim, action_dim, hidden_dim,discriminator_lr,gamma,state_only):
+        super(AIRLDiscriminator, self).__init__()
+        self.writer = writer
+        self.device = device
+        self.gamma = gamma
+        self.g = G(device,state_dim,action_dim,hidden_dim,state_only = state_only)
+        self.h = H(device,state_dim,hidden_dim)
+        self.criterion = nn.BCELoss()
+        self.optimizer = optim.Adam(self.parameters(), lr=discriminator_lr)
+        
+    def get_reward(self,state,action,next_state,done):
+        return (- torch.log(self.forward(state,action,next_state,done)+1e-3)).detach()
+    def forward(self,state,action,next_state,done):
+        return torch.sigmoid(self.g(state,action) + (1-done.float()) * self.gamma * self.h(next_state) - self.h(state))
+        
+    def train(self,writer,n_epi,agent_s,agent_a,agent_next_s,agent_done,expert_s,expert_a,expert_next_s,expert_done):
+        
+        expert_preds = self.forward(expert_s,expert_a,expert_next_s,expert_done)
+        expert_loss = self.criterion(expert_preds,torch.zeros(expert_preds.shape[0],1).to(self.device)) 
+        
+        agent_preds = self.forward(agent_s,agent_a,agent_next_s,agent_done)
+        agent_loss = self.criterion(agent_preds,torch.ones(agent_preds.shape[0],1).to(self.device))
+        
+        loss = expert_loss+agent_loss
+        expert_acc = ((expert_preds < 0.5).float()).mean()
+        learner_acc = ((agent_preds > 0.5).float()).mean()
+        print("expert_acc : ",expert_acc)
+        print("learner_acc : ",learner_acc)
+        if self.writer != None:
+            self.writer.add_scalar("loss/discriminator_loss", loss.item(), n_epi)
+        if (expert_acc > 0.8) and (learner_acc > 0.8):
+            return 
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()

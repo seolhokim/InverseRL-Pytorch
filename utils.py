@@ -35,7 +35,10 @@ class Rollouts(object):
         full_batch_size = len(states)
         indices = np.random.randint(0, full_batch_size, mini_batch_size)
         return states[indices], actions[indices]
-    
+    def choose_s_a_nexts_old_log_prob_mini_batch(self, mini_batch_size, states, actions, next_state,done):
+        full_batch_size = len(states)
+        indices = np.random.randint(0, full_batch_size, mini_batch_size)
+        return states[indices], actions[indices],next_state[indices],done[indices]
 class RunningMeanStd(object):
     def __init__(self, epsilon=1e-4, shape=()):
         self.mean = np.zeros(shape, 'float64')
