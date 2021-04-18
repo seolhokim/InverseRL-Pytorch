@@ -191,17 +191,26 @@ class AIRLDiscriminator(nn.Module):
         self.criterion = nn.BCELoss()
         self.optimizer = optim.Adam(self.parameters(), lr=discriminator_lr)
         
-    def get_reward(self,state,action,next_state,done):
-        return (- torch.log(self.forward(state,action,next_state,done)+1e-3)).detach()
-    def forward(self,state,action,next_state,done):
-        return torch.sigmoid(self.g(state,action) + (1-done.float()) * self.gamma * self.h(next_state) - self.h(state))
+    def get_f(self,state,action,next_state,done):
+        return self.g(state,action) + (1-done.float()) * self.gamma * self.h(next_state) - self.h(state)
+    def get_d(self,prob,state,action,next_state,done):
+        exp_f = torch.exp(self.get_f(state,action,next_state,done))
+        return (exp_f/(exp_f + prob))
+    def get_reward(self,prob,state,action,next_state,done):
+        d = self.get_d(prob,state,action,next_state,done)
+        #return (torch.log(d+1e-3) - torch.log(1-d)+1e-3).detach()
+        #return (- torch.log(1-d)+1e-3).detach()
+        return -torch.log(d).detach()
+    def forward(self,prob,state,action,next_state,done):
+        d = (self.get_d(prob,state,action,next_state,done))
+        return d
         
-    def train(self,writer,n_epi,agent_s,agent_a,agent_next_s,agent_done,expert_s,expert_a,expert_next_s,expert_done):
+    def train(self,writer,n_epi,agent_s,agent_a,agent_next_s,agent_prob,agent_done,expert_s,expert_a,expert_next_s,expert_prob,expert_done):
         
-        expert_preds = self.forward(expert_s,expert_a,expert_next_s,expert_done)
+        expert_preds = self.forward(expert_prob,expert_s,expert_a,expert_next_s,expert_done)
         expert_loss = self.criterion(expert_preds,torch.zeros(expert_preds.shape[0],1).to(self.device)) 
         
-        agent_preds = self.forward(agent_s,agent_a,agent_next_s,agent_done)
+        agent_preds = self.forward(agent_prob,agent_s,agent_a,agent_next_s,agent_done)
         agent_loss = self.criterion(agent_preds,torch.ones(agent_preds.shape[0],1).to(self.device))
         
         loss = expert_loss+agent_loss
@@ -211,8 +220,8 @@ class AIRLDiscriminator(nn.Module):
         #print("learner_acc : ",learner_acc)
         if self.writer != None:
             self.writer.add_scalar("loss/discriminator_loss", loss.item(), n_epi)
-        if (expert_acc > 0.8) and (learner_acc > 0.8):
-            return 
+        #if (expert_acc > 0.8) and (learner_acc > 0.8):
+        #    return 
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()

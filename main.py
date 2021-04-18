@@ -37,22 +37,29 @@ T_horizon     = 2048
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 is_vail = False
-
+is_airl = True
 writer = SummaryWriter()
 
-agent = PPO(writer,device,state_space,action_space,hidden_size,expert_state_location,expert_action_location,\
+agent = PPO(writer,device,state_space,action_space,hidden_size,\
+            expert_state_location,\
+            expert_action_location,\
+            expert_next_state_location,\
+            expert_done_location,\
            entropy_coef,critic_coef,ppo_lr,gamma,lmbda,eps_clip,\
             K_epoch,ppo_batch_size)
+'''
 if is_vail == True : 
     discriminator = VAILDiscriminator(writer,device,state_space, action_space, hidden_dim,z_dim,discriminator_lr)
     discriminator_batch_size = VAIL_batch_size
 else:
     discriminator = GAILDiscriminator(writer,device,state_space, action_space, hidden_dim,discriminator_lr)
     discriminator_batch_size = GAIL_batch_size
+'''
+discriminator = AIRLDiscriminator(writer, device, state_space,action_space,hidden_size,discriminator_lr,gamma,state_only)
 if torch.cuda.is_available():
     agent = agent.cuda()
     discriminator = discriminator.cuda()
-#discriminator = AIRLDiscriminator(writer, device, state_space,action_space,hidden_size,discriminator_lr,gamma,state_only)
+
     
 state_rms = RunningMeanStd(state_space)
 
@@ -74,7 +81,9 @@ for n_epi in range(1001):
         s_prime, r, done, info = env.step(action.unsqueeze(0).cpu().numpy())
         s_prime = np.clip((s_prime - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5)
         if is_airl:
+            prob = dist.log_prob(action).exp().prod(-1,keepdim = True).detach()
             reward = discriminator.get_reward(\
+                        prob,
                         torch.tensor(s).unsqueeze(0).float().to(device),action.unsqueeze(0),\
                         torch.tensor(s_prime).unsqueeze(0).float().to(device),\
                                               torch.tensor(done).unsqueeze(0)\

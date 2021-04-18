@@ -58,9 +58,9 @@ class PPO(nn.Module):
     
     
     def train(self,writer,discriminator,discriminator_batch_size,state_rms,n_epi,airl = False):
-        s_, a_, r_, s_prime_, done_mask_, old_prob_ = self.data.make_batch(self.device)
-        self.train_ppo(writer,n_epi,s_, a_, r_, s_prime_, done_mask_, old_prob_)
-        ####TODO
+        s_, a_, r_, s_prime_, done_mask_, old_log_prob_ = self.data.make_batch(self.device)
+        
+
         if airl == False:
             agent_s,agent_a = self.data.choose_s_a_mini_batch(discriminator_batch_size,s_,a_)
             expert_s,expert_a = self.data.choose_s_a_mini_batch(discriminator_batch_size,self.expert_states,self.expert_actions)
@@ -71,16 +71,31 @@ class PPO(nn.Module):
             agent_s,agent_a,agent_next_s,agent_done = self.data.choose_s_a_nexts_old_log_prob_mini_batch(discriminator_batch_size,s_,a_,s_prime_,done_mask_)
             expert_s,expert_a,expert_next_s,expert_done = self.data.choose_s_a_nexts_old_log_prob_mini_batch(discriminator_batch_size,self.expert_states,self.expert_actions,self.expert_next_states,self.expert_dones) 
 
-            expert_s = np.clip((expert_s - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5)
-            expert_next_s = np.clip((expert_next_s - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5)
-     
-            self.train_airl_discriminator(writer,discriminator,n_epi,agent_s,agent_a,agent_next_s,agent_done,expert_s,expert_a,expert_next_s,expert_done)
-    def train_airl_discriminator(self,writer,discriminator,n_epi,agent_s,agent_a,\
-                            agent_next_s,agent_done,expert_s,expert_a,expert_next_s,expert_done):
-        discriminator.train(writer,n_epi,agent_s,agent_a,agent_next_s,agent_done,expert_s,expert_a,expert_next_s,expert_done)
-        
+            expert_s = np.clip((expert_s - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5).float()
+            expert_next_s = np.clip((expert_next_s - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5).float()
+            
+            mu,sigma = self.pi(agent_s.float().to(self.device))
+            dist = torch.distributions.Normal(mu,sigma)
+            action = dist.sample()
+            agent_prob = dist.log_prob(action).exp().prod(-1,keepdim=True).detach()
+            
+            mu,sigma = self.pi(expert_s.float().to(self.device))
+            dist = torch.distributions.Normal(mu,sigma)
+            action = dist.sample()
+            expert_prob = dist.log_prob(action).exp().prod(-1,keepdim=True).detach()
+            
+
+            self.train_airl_discriminator(writer,discriminator,n_epi,agent_s,agent_a,agent_next_s,agent_prob,agent_done,expert_s,expert_a,expert_next_s,expert_prob,expert_done)
+
+
+        self.train_ppo(writer,n_epi,s_, a_, r_, s_prime_, done_mask_, old_log_prob_)
     def train_discriminator(self,writer,discriminator,n_epi,agent_s,agent_a,expert_s,expert_a):
         discriminator.train(writer,n_epi,agent_s,agent_a,expert_s,expert_a)
+    def train_airl_discriminator(self,writer,discriminator,n_epi,agent_s,agent_a,\
+                            agent_next_s,agent_prob,agent_done,expert_s,expert_a,expert_next_s,expert_prob,expert_done):
+        discriminator.train(writer,n_epi,agent_s,agent_a,agent_next_s,agent_prob,agent_done,expert_s,expert_a,expert_next_s,expert_prob,expert_done)
+        
+        
     def train_ppo(self,writer,n_epi,s_, a_, r_, s_prime_, done_mask_, old_log_prob_):
         old_value_ = self.v(s_).detach()
         td_target = r_ + self.gamma * self.v(s_prime_) * done_mask_
@@ -105,10 +120,9 @@ class PPO(nn.Module):
                 value = self.v(s).float()
                 curr_dist = torch.distributions.Normal(curr_mu,curr_sigma)
                 entropy = curr_dist.entropy() * self.entropy_coef
-                curr_log_prob = curr_dist.log_prob(a).sum(-1,keepdim = True)
+                curr_prob = curr_dist.log_prob(a).sum(-1,keepdim = True)
                 
-                ratio = torch.exp(curr_log_prob - old_log_prob.detach())
-                
+                ratio = torch.exp(curr_prob - old_log_prob.detach())
                 surr1 = ratio * advantage
                 surr2 = torch.clamp(ratio, 1-self.eps_clip, 1+self.eps_clip) * advantage
                 
