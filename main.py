@@ -1,5 +1,5 @@
 from agent import PPO
-from discriminator import GAILDiscriminator,VAILDiscriminator, AIRLDiscriminator
+from discriminator import GAILDiscriminator,VAILDiscriminator, AIRLDiscriminator, VAIRLDiscriminator
 from utils import RunningMeanStd
 
 import gym
@@ -33,7 +33,8 @@ GAIL_batch_size = 512
 VAIL_batch_size = 512
 state_only = True
 T_horizon     = 2048
-
+dual_stepsize = 1e-5
+mutual_info_constraint = 0.5
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 is_vail = False
@@ -47,15 +48,19 @@ agent = PPO(writer,device,state_space,action_space,hidden_size,\
             expert_done_location,\
            entropy_coef,critic_coef,ppo_lr,gamma,lmbda,eps_clip,\
             K_epoch,ppo_batch_size)
+discriminator_batch_size = VAIL_batch_size
 '''
 if is_vail == True : 
-    discriminator = VAILDiscriminator(writer,device,state_space, action_space, hidden_dim,z_dim,discriminator_lr)
+    discriminator = VAILDiscriminator(writer,device,state_space, action_space, hidden_dim,z_dim,discriminator_lr,dual_stepsize,mutual_info_constraint)
     discriminator_batch_size = VAIL_batch_size
 else:
     discriminator = GAILDiscriminator(writer,device,state_space, action_space, hidden_dim,discriminator_lr)
     discriminator_batch_size = GAIL_batch_size
 '''
-discriminator = AIRLDiscriminator(writer, device, state_space,action_space,hidden_size,discriminator_lr,gamma,state_only)
+#discriminator = AIRLDiscriminator(writer, device, state_space,action_space,hidden_size,discriminator_lr,gamma,state_only)
+discriminator = VAIRLDiscriminator(writer, device, state_space,action_space,hidden_size,z_dim,\
+                                   discriminator_lr,gamma,state_only,dual_stepsize,mutual_info_constraint)
+
 if torch.cuda.is_available():
     agent = agent.cuda()
     discriminator = discriminator.cuda()
