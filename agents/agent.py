@@ -5,8 +5,8 @@ import torch.optim as optim
 
 import numpy as np
 
-from network import Actor, Critic
-from utils import Rollouts
+from networks.network import Actor, Critic
+from utils.utils import Rollouts
 
 class PPO(nn.Module):
     def __init__(self,writer,device,state_dim,action_dim,hidden_dim,\

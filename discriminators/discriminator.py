@@ -68,7 +68,6 @@ class VAILDiscriminator(nn.Module):
         self.dual_stepsize = dual_stepsize
         self.mutual_info_constraint = mutual_info_constraint
         self.beta = 0
-        self.r = Normal(torch.zeros(z_dim),torch.ones(z_dim))
         self.criterion = nn.BCELoss()
         
         for layer in self.modules():
@@ -309,7 +308,6 @@ class VAIRLDiscriminator(nn.Module):
         self.dual_stepsize = dual_stepsize
         self.mutual_info_constraint = mutual_info_constraint
         self.beta = 0
-        self.r = Normal(torch.zeros(z_dim),torch.ones(z_dim))
         self.criterion = nn.BCELoss()
     def get_joint_latent_kl_div(self,mu,logvar):
         raise NotImplementedError
@@ -322,8 +320,13 @@ class VAIRLDiscriminator(nn.Module):
         else:
             return self.g(state,action,get_dist) + (1-done.float()) * self.gamma * self.h(next_state,get_dist) - self.h(state,get_dist)
     def get_d(self,prob,state,action,next_state,done,get_dist):
-        exp_f = torch.exp(self.get_f(state,action,next_state,done,get_dist))
-        return (exp_f/(exp_f + prob))
+        if get_dist:
+            f,mu,std = self.get_f(state,action,next_state,done,get_dist)
+            exp_f = torch.exp(f)
+            return (exp_f/(exp_f + prob)),mu,std
+        else:
+            exp_f = torch.exp(self.get_f(state,action,next_state,done,get_dist))
+            return (exp_f/(exp_f + prob))
     def get_reward(self,prob,state,action,next_state,done,get_dist = False):
         d = self.get_d(prob,state,action,next_state,done,get_dist)
         return -torch.log(d).detach()
