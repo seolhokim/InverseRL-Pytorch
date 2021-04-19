@@ -1,4 +1,5 @@
 from agents.agent import PPO
+#from discriminators.discriminator import Discriminator,
 from discriminators.gail import GAIL
 from discriminators.vail import VAIL
 from discriminators.airl import AIRL
@@ -54,14 +55,39 @@ agent = PPO(writer,device,agent_layer_num,state_space,action_space,hidden_space,
             expert_done_location,\
            entropy_coef,critic_coef,ppo_lr,gamma,lmbda,eps_clip,\
             K_epoch,ppo_batch_size)
-#is_airl = True
+'''
+is_airl = True
+airl_layer_num = 3
+airl_activation_function = torch.tanh
+airl_last_activation = None
+discriminator = AIRL(writer, device, state_space,action_space,hidden_dim,discriminator_lr,gamma,state_only,\
+                     airl_layer_num, airl_activation_function, airl_last_activation)
+'''
+'''
+is_airl = True
+discriminator = VAIRL(writer, device, state_space,action_space,hidden_dim,z_dim,discriminator_lr,gamma,state_only,dual_stepsize,mutual_info_constraint)
 
-#discriminator = AIRL(writer, device, state_space,action_space,hidden_size,discriminator_lr,gamma,state_only)
-#discriminator = VAIRL(writer, device, state_space,action_space,hidden_size,z_dim,discriminator_lr,gamma,state_only,dual_stepsize,mutual_info_constraint)
+'''
+
+'''
+is_airl = False
+gail_layer_num = 3
+gail_activation_function = torch.tanh
+gail_last_activation = torch.sigmoid
+discriminator = GAIL(writer,device,gail_layer_num,\
+                     state_space, action_space, hidden_dim,gail_activation_function,\
+                     gail_last_activation,discriminator_lr)
+
+'''
+
 
 is_airl = False
-#discriminator = GAIL(writer,device,state_space, action_space, hidden_dim,discriminator_lr)
-discriminator = VAIL(writer,device,state_space, action_space, hidden_dim,z_dim,discriminator_lr,dual_stepsize,mutual_info_constraint)
+vail_epoch = 3
+discriminator = VAIL(writer,device,state_space, action_space, hidden_dim,z_dim,discriminator_lr,dual_stepsize,mutual_info_constraint,vail_epoch)
+
+
+
+
 if torch.cuda.is_available():
     agent = agent.cuda()
     discriminator = discriminator.cuda()

@@ -1,28 +1,23 @@
 from discriminators.base import Discriminator
-
+from networks.base import Network
 import torch
 import torch.nn as nn
 
 class GAIL(Discriminator):
-    def __init__(self, writer, device, state_dim, action_dim, hidden_dim,discriminator_lr):
+    def __init__(self, writer, device, layer_num, state_dim, action_dim, hidden_dim, activation_function, last_activation, discriminator_lr):
         super(GAIL, self).__init__()
         self.writer = writer
         self.device = device
-        self.fc1 = nn.Linear(state_dim + action_dim, hidden_dim)
-        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
-        self.fc3 = nn.Linear(hidden_dim, 1)
-        self.network_init()
+        self.network = Network(layer_num, state_dim+action_dim, 1, hidden_dim, activation_function,last_activation)
         self.criterion = nn.BCELoss()
         self.optimizer = torch.optim.Adam(self.parameters(), lr=discriminator_lr)
 
     def forward(self, x):
-        x = torch.tanh(self.fc1(x))
-        x = torch.tanh(self.fc2(x))
-        prob = torch.sigmoid(self.fc3(x))
+        prob = self.network.forward(x)
         return prob
     def get_reward(self,state,action):
         x = torch.cat((state,action),-1)
-        x = self.forward(x)
+        x = self.network.forward(x)
         return -torch.log(x).detach()
     def train_discriminator(self,writer,n_epi,agent_s,agent_a,expert_s,expert_a):
         expert_cat = torch.cat((torch.tensor(expert_s),torch.tensor(expert_a)),-1)

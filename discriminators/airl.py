@@ -1,53 +1,16 @@
 from discriminators.base import Discriminator
-
+from networks.discriminator_network import G,H
 import torch
 import torch.nn as nn
-
-class G(nn.Module):
-    def __init__(self,device,state_dim,action_dim,hidden_dim,state_only = True):
-        super(G,self).__init__()
-        self.device = device
-        self.state_only = state_only
-        if state_only :
-            self.fc1 = nn.Linear(state_dim, hidden_dim)
-        else :
-            self.fc1 = nn.Linear(state_dim + action_dim, hidden_dim)
-        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
-        self.fc3 = nn.Linear(hidden_dim, 1)
-        
-    def forward(self,state,action):
-        if self.state_only:
-            x = state
-        else:
-            x = torch.cat((state,action),-1)
-        x = torch.tanh(self.fc1(x))
-        x = torch.tanh(self.fc2(x))
-        x = (self.fc3(x))
-        return x
-    
-class H(nn.Module):
-    def __init__(self,device,state_dim,hidden_dim):
-        super(H,self).__init__()
-        self.device = device
-        self.fc1 = nn.Linear(state_dim, hidden_dim)
-        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
-        self.fc3 = nn.Linear(hidden_dim, 1)
-
-    def forward(self,state):
-        x = torch.tanh(self.fc1(state))
-        x = torch.tanh(self.fc2(x))
-        x = (self.fc3(x))
-        return x
     
 class AIRL(Discriminator):
-    def __init__(self, writer, device, state_dim, action_dim, hidden_dim,discriminator_lr,gamma,state_only):
+    def __init__(self, writer, device, state_dim, action_dim, hidden_dim,discriminator_lr,gamma,state_only,layer_num = 3, activation_function = torch.tanh, last_activation = None):
         super(AIRL, self).__init__()
         self.writer = writer
         self.device = device
         self.gamma = gamma
-        self.g = G(device,state_dim,action_dim,hidden_dim,state_only = state_only)
-        self.h = H(device,state_dim,hidden_dim)
-        self.network_init()
+        self.g = G(state_only, layer_num, state_dim, action_dim, hidden_dim, activation_function, last_activation)
+        self.h = H(layer_num, state_dim, action_dim, hidden_dim, activation_function, last_activation)
         self.criterion = nn.BCELoss()
         self.optimizer = torch.optim.Adam(self.parameters(), lr=discriminator_lr)
         

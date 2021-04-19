@@ -1,69 +1,7 @@
 from discriminators.base import Discriminator
-
+from networks.discriminator_network import VariationalG, VariationalH
 import torch
 import torch.nn as nn
-
-class VariationalG(nn.Module):
-    def __init__(self,device,state_dim,action_dim,hidden_dim,z_dim,state_only = True):
-        super(VariationalG,self).__init__()
-        self.device = device
-        self.state_only = state_only
-        if state_only :
-            self.fc1 = nn.Linear(state_dim, hidden_dim)
-        else :
-            self.fc1 = nn.Linear(state_dim + action_dim, hidden_dim)
-        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
-        
-        self.mu = nn.Linear(hidden_dim, z_dim) 
-        self.sigma = nn.Linear(hidden_dim, z_dim) 
-        
-        self.fc3 = nn.Linear(z_dim, 1)
-    def get_z(self,x):
-        x = torch.relu(self.fc1(x))
-        x = torch.relu(self.fc2(x))
-        mu = self.mu(x)
-        sigma = self.sigma(x)
-        std = torch.exp(sigma/2)
-        eps = torch.randn_like(std)
-        return  mu + std * eps,mu,sigma
-    def forward(self,state,action,get_dist = False):
-        if self.state_only:
-            x = state
-        else:
-            x = torch.cat((state,action),-1)
-        z,mu,std = self.get_z(x)
-        x = torch.sigmoid(self.fc3(z))
-        if get_dist == False:
-            return x
-        else:
-            return x,mu,std
-    
-class VariationalH(nn.Module):
-    def __init__(self,device,state_dim,hidden_dim,z_dim):
-        super(VariationalH,self).__init__()
-        self.device = device
-        self.fc1 = nn.Linear(state_dim, hidden_dim)
-        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
-        
-        self.mu = nn.Linear(hidden_dim, z_dim) 
-        self.sigma = nn.Linear(hidden_dim, z_dim)
-        
-        self.fc3 = nn.Linear(z_dim, 1)
-    def get_z(self,x):
-        x = torch.relu(self.fc1(x))
-        x = torch.relu(self.fc2(x))
-        mu = self.mu(x)
-        sigma = self.sigma(x)
-        std = torch.exp(sigma/2)
-        eps = torch.randn_like(std)
-        return  mu + std * eps,mu,sigma
-    def forward(self,state,get_dist = False):
-        z,mu,std = self.get_z(state)
-        x = torch.sigmoid(self.fc3(z))
-        if get_dist == False:
-            return x
-        else:
-            return x,mu,std
 
 class VAIRL(Discriminator):
     def __init__(self, writer, device, state_dim, action_dim, hidden_dim,z_dim,discriminator_lr,gamma,state_only,dual_stepsize=1e-5,mutual_info_constraint=0.5):
@@ -71,8 +9,8 @@ class VAIRL(Discriminator):
         self.writer = writer
         self.device = device
         self.gamma = gamma
-        self.g = VariationalG(device,state_dim,action_dim,hidden_dim,z_dim,state_only = state_only)
-        self.h = VariationalH(device,state_dim,hidden_dim,z_dim)
+        self.g = VariationalG(state_dim, action_dim, hidden_dim, z_dim, state_only)
+        self.h = VariationalH(state_dim, action_dim, hidden_dim, z_dim)
         self.network_init()
         self.criterion = nn.BCELoss()
         self.optimizer = torch.optim.Adam(self.parameters(), lr=discriminator_lr)
@@ -84,7 +22,7 @@ class VAIRL(Discriminator):
         raise NotImplementedError
     def get_f(self,state,action,next_state,done,get_dist):
         if get_dist:
-            g,g_mu,g_std= self.g(state,action,get_dist)
+            g,g_mu,g_std = self.g(state,action,get_dist)
             h,h_mu,h_std = self.h(state,get_dist)
             next_h,next_h_mu,next_h_std = self.h(next_state,get_dist)
             return (g+(1-done.float())* self.gamma * next_h - h), [g_mu,h_mu,next_h_mu],[g_std,h_std,next_h_std]
