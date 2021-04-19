@@ -18,10 +18,6 @@ class VariationalG(nn.Module):
         self.sigma = nn.Linear(hidden_dim, z_dim) 
         
         self.fc3 = nn.Linear(z_dim, 1)
-        for layer in self.modules():
-            if isinstance(layer, nn.Linear):
-                nn.init.orthogonal_(layer.weight)
-                layer.bias.data.zero_() 
     def get_z(self,x):
         x = torch.relu(self.fc1(x))
         x = torch.relu(self.fc2(x))
@@ -53,10 +49,6 @@ class VariationalH(nn.Module):
         self.sigma = nn.Linear(hidden_dim, z_dim)
         
         self.fc3 = nn.Linear(z_dim, 1)
-        for layer in self.modules():
-            if isinstance(layer, nn.Linear):
-                nn.init.orthogonal_(layer.weight)
-                layer.bias.data.zero_() 
     def get_z(self,x):
         x = torch.relu(self.fc1(x))
         x = torch.relu(self.fc2(x))
@@ -81,6 +73,7 @@ class VAIRL(Discriminator):
         self.gamma = gamma
         self.g = VariationalG(device,state_dim,action_dim,hidden_dim,z_dim,state_only = state_only)
         self.h = VariationalH(device,state_dim,hidden_dim,z_dim)
+        self.network_init()
         self.criterion = nn.BCELoss()
         self.optimizer = torch.optim.Adam(self.parameters(), lr=discriminator_lr)
         self.dual_stepsize = dual_stepsize
