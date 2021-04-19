@@ -13,7 +13,7 @@ class AIRL(Discriminator):
         self.h = H(layer_num, state_dim, action_dim, hidden_dim, activation_function, last_activation)
         self.criterion = nn.BCELoss()
         self.optimizer = torch.optim.Adam(self.parameters(), lr=discriminator_lr)
-        
+        self.network_init()
     def get_f(self,state,action,next_state,done):
         return self.g(state,action) + (1-done.float()) * self.gamma * self.h(next_state) - self.h(state)
     def get_d(self,prob,state,action,next_state,done):
