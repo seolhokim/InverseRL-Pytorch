@@ -35,7 +35,7 @@ class Rollouts(object):
         full_batch_size = len(states)
         indices = np.random.randint(0, full_batch_size, mini_batch_size)
         return states[indices], actions[indices]
-    def choose_s_a_nexts_old_log_prob_mini_batch(self, mini_batch_size, states, actions, next_state,done):
+    def choose_s_a_nexts_done_batch(self, mini_batch_size, states, actions, next_state,done):
         full_batch_size = len(states)
         indices = np.random.randint(0, full_batch_size, mini_batch_size)
         return states[indices], actions[indices],next_state[indices],done[indices]

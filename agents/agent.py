@@ -67,8 +67,8 @@ class PPO(nn.Module):
             expert_s = np.clip((expert_s - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5)
             self.train_discriminator(writer,discriminator,n_epi,agent_s,agent_a,expert_s,expert_a)
         else:
-            agent_s,agent_a,agent_next_s,agent_done = self.data.choose_s_a_nexts_old_log_prob_mini_batch(discriminator_batch_size,s_,a_,s_prime_,done_mask_)
-            expert_s,expert_a,expert_next_s,expert_done = self.data.choose_s_a_nexts_old_log_prob_mini_batch(discriminator_batch_size,self.expert_states,self.expert_actions,self.expert_next_states,self.expert_dones) 
+            agent_s,agent_a,agent_next_s,agent_done = self.data.choose_s_a_nexts_done_batch(discriminator_batch_size,s_,a_,s_prime_,done_mask_)
+            expert_s,expert_a,expert_next_s,expert_done = self.data.choose_s_a_nexts_done_batch(discriminator_batch_size,self.expert_states,self.expert_actions,self.expert_next_states,self.expert_dones) 
 
             expert_s = np.clip((expert_s - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5).float()
             expert_next_s = np.clip((expert_next_s - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5).float()
