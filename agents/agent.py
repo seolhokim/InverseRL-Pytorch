@@ -90,10 +90,10 @@ class PPO(nn.Module):
 
         self.train_ppo(writer,n_epi,s_, a_, r_, s_prime_, done_mask_, old_log_prob_)
     def train_discriminator(self,writer,discriminator,n_epi,agent_s,agent_a,expert_s,expert_a):
-        discriminator.train(writer,n_epi,agent_s,agent_a,expert_s,expert_a)
+        discriminator.train_discriminator(writer,n_epi,agent_s,agent_a,expert_s,expert_a)
     def train_airl_discriminator(self,writer,discriminator,n_epi,agent_s,agent_a,\
                             agent_next_s,agent_prob,agent_done,expert_s,expert_a,expert_next_s,expert_prob,expert_done):
-        discriminator.train(writer,n_epi,agent_s,agent_a,agent_next_s,agent_prob,agent_done,expert_s,expert_a,expert_next_s,expert_prob,expert_done)
+        discriminator.train_discriminator(writer,n_epi,agent_s,agent_a,agent_next_s,agent_prob,agent_done,expert_s,expert_a,expert_next_s,expert_prob,expert_done)
         
         
     def train_ppo(self,writer,n_epi,s_, a_, r_, s_prime_, done_mask_, old_log_prob_):

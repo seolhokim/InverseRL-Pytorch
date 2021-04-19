@@ -1,6 +1,10 @@
-from agent import PPO
-from discriminator import GAILDiscriminator,VAILDiscriminator, AIRLDiscriminator, VAIRLDiscriminator
-from utils import RunningMeanStd
+from agents.agent import PPO
+#from discriminators.discriminator import Discriminator,
+from discriminators.gail import GAIL
+from discriminators.vail import VAIL
+from discriminators.airl import AIRL
+from discriminators.vairl import VAIRL
+from utils.utils import RunningMeanStd
 
 import gym
 import numpy as np
@@ -31,14 +35,15 @@ hidden_size = 64
 ppo_batch_size = 64
 GAIL_batch_size = 512
 VAIL_batch_size = 512
-state_only = True
+discriminator_batch_size = VAIL_batch_size
 T_horizon     = 2048
+
 dual_stepsize = 1e-5
 mutual_info_constraint = 0.5
+state_only = True
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-is_vail = False
-is_airl = True
+
 writer = SummaryWriter()
 
 agent = PPO(writer,device,state_space,action_space,hidden_size,\
@@ -48,45 +53,38 @@ agent = PPO(writer,device,state_space,action_space,hidden_size,\
             expert_done_location,\
            entropy_coef,critic_coef,ppo_lr,gamma,lmbda,eps_clip,\
             K_epoch,ppo_batch_size)
-discriminator_batch_size = VAIL_batch_size
-'''
-if is_vail == True : 
-    discriminator = VAILDiscriminator(writer,device,state_space, action_space, hidden_dim,z_dim,discriminator_lr,dual_stepsize,mutual_info_constraint)
-    discriminator_batch_size = VAIL_batch_size
-else:
-    discriminator = GAILDiscriminator(writer,device,state_space, action_space, hidden_dim,discriminator_lr)
-    discriminator_batch_size = GAIL_batch_size
-'''
-#discriminator = AIRLDiscriminator(writer, device, state_space,action_space,hidden_size,discriminator_lr,gamma,state_only)
-discriminator = VAIRLDiscriminator(writer, device, state_space,action_space,hidden_size,z_dim,\
+is_airl = True
+#discriminator = AIRL(writer, device, state_space,action_space,hidden_size,discriminator_lr,gamma,state_only)
+discriminator = VAIRL(writer, device, state_space,action_space,hidden_size,z_dim,\
                                    discriminator_lr,gamma,state_only,dual_stepsize,mutual_info_constraint)
-
+#discriminator = GAIL(writer,device,state_space, action_space, hidden_dim,discriminator_lr)
+#discriminator = VAIL(writer,device,state_space, action_space, hidden_dim,z_dim,discriminator_lr,dual_stepsize,mutual_info_constraint)
 if torch.cuda.is_available():
     agent = agent.cuda()
     discriminator = discriminator.cuda()
-
-    
 state_rms = RunningMeanStd(state_space)
 
-print_interval = 20
+print_interval = 1
 render = False
 score_lst = []
+state_lst = []
 max_score = 0 
 
 score = 0.0
-s = (env.reset())
-s = np.clip((s - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5)
+s_ = (env.reset())
+s = np.clip((s_ - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5)
 for n_epi in range(1001):
     for t in range(T_horizon):
+        state_lst.append(s_)
         mu,sigma = agent.pi(torch.from_numpy(s).float().to(device))
         dist = torch.distributions.Normal(mu,sigma)
 
         action = dist.sample()
         log_prob = dist.log_prob(action).sum(-1,keepdim = True)
-        s_prime, r, done, info = env.step(action.unsqueeze(0).cpu().numpy())
-        s_prime = np.clip((s_prime - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5)
+        prob = dist.log_prob(action).exp().prod(-1,keepdim = True).detach()
+        s_prime_, r, done, info = env.step(action.unsqueeze(0).cpu().numpy())
+        s_prime = np.clip((s_prime_ - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5)
         if is_airl:
-            prob = dist.log_prob(action).exp().prod(-1,keepdim = True).detach()
             reward = discriminator.get_reward(\
                         prob,
                         torch.tensor(s).unsqueeze(0).float().to(device),action.unsqueeze(0),\
@@ -99,16 +97,18 @@ for n_epi in range(1001):
                         log_prob.detach().cpu().numpy(), done))
         score += r
         if done:
-            s = (env.reset())
-            s = np.clip((s - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5)
+            s_ = (env.reset())
+            s = np.clip((s_ - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5)
             score_lst.append(score)
             if writer != None:
                 writer.add_scalar("score", score, n_epi)
             score = 0
         else:
             s = s_prime
-            
-    agent.train(writer,discriminator,discriminator_batch_size,state_rms,n_epi,is_airl)
+            s_ = s_prime_
+    agent.train(writer,discriminator,discriminator_batch_size,state_rms,n_epi,airl=is_airl)
+    state_rms.update(np.vstack(state_lst))
+    state_lst = []
     if n_epi%print_interval==0 and n_epi!=0:
         print("# of episode :{}, avg score : {:.1f}".format(n_epi, sum(score_lst)/len(score_lst)))
         score_lst = []
