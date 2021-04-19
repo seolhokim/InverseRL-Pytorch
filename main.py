@@ -1,110 +1,100 @@
+from agents.ppo              import PPO
+from discriminators.gail     import GAIL
+from discriminators.vail     import VAIL
+from discriminators.airl     import AIRL
+from discriminators.vairl    import VAIRL
+from utils.utils             import RunningMeanStd
 
-from agents.agent import PPO
-from discriminators.gail import GAIL
-from discriminators.vail import VAIL
-from discriminators.airl import AIRL
-from discriminators.vairl import VAIRL
-from utils.utils import RunningMeanStd
-
+import os
 import gym
 import numpy as np
+from distutils.util import strtobool 
+
+from configparser            import ConfigParser
+from argparse                import ArgumentParser
 
 import torch
-from torch.utils.tensorboard import SummaryWriter
+
+
+os.makedirs('./model_weights', exist_ok=True)
 
 env = gym.make("Hopper-v2")
 
 action_space = env.action_space.shape[0]
 state_space = env.observation_space.shape[0]
 
+parser = ArgumentParser('parameters')
 
-expert_state_location = './expert_data/hopper_expert_states.npy'
-expert_action_location = './expert_data/hopper_expert_actions.npy'
-expert_next_state_location = './expert_data/hopper_expert_next_states.npy'
-expert_done_location = './expert_data/hopper_expert_done.npy'
-entropy_coef = 1e-2
-critic_coef = 0.5
-ppo_lr = 0.0003
-discriminator_lr = 0.0003
-gamma         = 0.99
-lmbda         = 0.95
-eps_clip      = 0.2
-K_epoch       = 10
-z_dim = 4
-hidden_space = 64 #agent
-hidden_dim = 64 #discriminator
-ppo_batch_size = 64
-GAIL_batch_size = 512
-VAIL_batch_size = 512
-discriminator_batch_size = VAIL_batch_size
-T_horizon     = 2048
-agent_layer_num = 3
-agent_activation_function = torch.tanh
-dual_stepsize = 1e-5
-mutual_info_constraint = 0.5
+
+parser.add_argument('--test', type=bool, default=False, help="True if test, False if train (default: False)")
+parser.add_argument('--render', type=bool, default=False, help="(default: False)")
+parser.add_argument('--epoch', type=int, default=1001, help='number of epochs, (default: 1001)')
+parser.add_argument("--agent", type=str, default = 'ppo', help = 'actor training algorithm(default: ppo)')
+parser.add_argument("--discriminator", type=str, default = 'gail', help = 'discriminator training algorithm(default: gail)')
+parser.add_argument("--save_interval", type=int, default = 100, help = 'save interval')
+parser.add_argument("--print_interval", type=int, default = 20, help = 'print interval')
+parser.add_argument('--tensorboard', type=bool, default=True, help='use_tensorboard, (default: True)')
+
+args = parser.parse_args()
+parser = ConfigParser()
+parser.read('config.ini')
+
+expert_state_location = parser['demonstrations_location']['expert_state_location']
+expert_action_location = parser['demonstrations_location']['expert_action_location']
+expert_next_state_location = parser['demonstrations_location']['expert_next_state_location']
+expert_done_location = parser['demonstrations_location']['expert_done_location']
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
+if args.tensorboard:
+    from torch.utils.tensorboard import SummaryWriter
+    writer = SummaryWriter()
+else:
+    writer = None
+if args.agent == 'ppo':
+    agent = PPO(writer,device,int(parser[args.agent]['agent_layer_num']),state_space,action_space,int(parser[args.agent]['hidden_space']),eval(parser[args.agent]['agent_activation_function']),\
+                expert_state_location,\
+                expert_action_location,\
+                expert_next_state_location,\
+                expert_done_location,\
+               float(parser[args.agent]['entropy_coef']),float(parser[args.agent]['critic_coef']),float(parser[args.agent]['lr']),float(parser[args.agent]['gamma']),\
+                float(parser[args.agent]['lmbda']),float(parser[args.agent]['eps_clip']),int(parser[args.agent]['K_epoch']),int(parser[args.agent]['batch_size']))
+else:
+    raise NotImplementedError
 
-
-writer = SummaryWriter()
-
-agent = PPO(writer,device,agent_layer_num,state_space,action_space,hidden_space,agent_activation_function,\
-            expert_state_location,\
-            expert_action_location,\
-            expert_next_state_location,\
-            expert_done_location,\
-           entropy_coef,critic_coef,ppo_lr,gamma,lmbda,eps_clip,\
-            K_epoch,ppo_batch_size)
-'''
-state_only = True
-is_airl = True
-airl_layer_num = 3
-airl_activation_function = torch.tanh
-airl_last_activation = None
-discriminator = AIRL(writer, device, state_space,action_space,hidden_dim,discriminator_lr,gamma,state_only,\
-                     airl_layer_num, airl_activation_function, airl_last_activation)
-
-'''
-
-'''
-state_only = True
-is_airl = True
-discriminator = VAIRL(writer, device, state_space,action_space,hidden_dim,z_dim,discriminator_lr,gamma,state_only,dual_stepsize,mutual_info_constraint)
-'''
-
-'''
-is_airl = False
-gail_layer_num = 3
-gail_activation_function = torch.tanh
-gail_last_activation = torch.sigmoid
-discriminator = GAIL(writer,device,gail_layer_num,\
-                     state_space, action_space, hidden_dim,gail_activation_function,\
-                     gail_last_activation,discriminator_lr)
-'''
-
-
-is_airl = False
-vail_epoch = 3
-discriminator = VAIL(writer,device,state_space, action_space, hidden_dim,z_dim,discriminator_lr,dual_stepsize,mutual_info_constraint,vail_epoch)
-
-
-
-if torch.cuda.is_available():
+if args.discriminator == 'airl':
+    discriminator = AIRL(writer, device, state_space,action_space,int(parser[args.discriminator]['hidden_space']),
+                         float(parser[args.discriminator]['lr']),float(parser[args.discriminator]['gamma']),
+                         bool(strtobool(parser[args.discriminator]['state_only'])), int(parser[args.discriminator]['layer_num']),
+                         eval(parser[args.discriminator]['activation_function']), eval(parser[args.discriminator]['last_activation']))
+elif args.discriminator == 'vairl':
+    discriminator = VAIRL(writer, device, state_space,action_space,int(parser[args.discriminator]['hidden_space']),int(parser[args.discriminator]['z_dim']),float(parser[args.discriminator]['lr']),float(parser[args.discriminator]['gamma']),bool(strtobool(parser[args.discriminator]['state_only'])),float(parser[args.discriminator]['dual_stepsize']),float(parser[args.discriminator]['mutual_info_constraint']))
+elif args.discriminator == 'gail':
+    discriminator = GAIL(writer,device,int(parser[args.discriminator]['layer_num']),
+                         state_space, action_space, int(parser[args.discriminator]['hidden_space']),eval(parser[args.discriminator]['activation_function']),
+                         eval(parser[args.discriminator]['last_activation']),float(parser[args.discriminator]['lr']))
+elif args.discriminator == 'vail':
+    discriminator = VAIL(writer,device,state_space, action_space, int(parser[args.discriminator]['hidden_space']),int(parser[args.discriminator]['z_dim']),float(parser[args.discriminator]['lr']),float(parser[args.discriminator]['dual_stepsize']),float(parser[args.discriminator]['mutual_info_constraint']),int(parser[args.discriminator]['epoch']))
+else:
+    raise NotImplementedError
+    
+if device == 'cuda':
     agent = agent.cuda()
     discriminator = discriminator.cuda()
+    
 state_rms = RunningMeanStd(state_space)
 
-print_interval = 1
-render = False
+
+
 score_lst = []
 state_lst = []
-max_score = 0 
 
 score = 0.0
 s_ = (env.reset())
 s = np.clip((s_ - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5)
-for n_epi in range(1001):
-    for t in range(T_horizon):
+for n_epi in range(args.epoch):
+    for t in range(int(parser[args.agent]['T_horizon'])):
+        if args.render:    
+            env.render()
         state_lst.append(s_)
         mu,sigma = agent.pi(torch.from_numpy(s).float().to(device))
         dist = torch.distributions.Normal(mu,sigma[0])
@@ -113,7 +103,7 @@ for n_epi in range(1001):
         log_prob = dist.log_prob(action).sum(-1,keepdim = True)
         s_prime_, r, done, info = env.step(action.unsqueeze(0).cpu().numpy())
         s_prime = np.clip((s_prime_ - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5)
-        if is_airl:
+        if bool(strtobool(parser[args.discriminator]['is_airl'])):
             reward = discriminator.get_reward(\
                         log_prob.exp(),
                         torch.tensor(s).unsqueeze(0).float().to(device),action.unsqueeze(0),\
@@ -135,9 +125,11 @@ for n_epi in range(1001):
         else:
             s = s_prime
             s_ = s_prime_
-    agent.train(writer,discriminator,discriminator_batch_size,state_rms,n_epi,airl=is_airl)
+    agent.train(writer,discriminator,int(parser[args.discriminator]['batch_size']),state_rms,n_epi,airl=bool(strtobool(parser[args.discriminator]['is_airl'])))
     state_rms.update(np.vstack(state_lst))
     state_lst = []
-    if n_epi%print_interval==0 and n_epi!=0:
+    if n_epi%args.print_interval==0 and n_epi!=0:
         print("# of episode :{}, avg score : {:.1f}".format(n_epi, sum(score_lst)/len(score_lst)))
         score_lst = []
+    if (n_epi % args.save_interval == 0 )& (n_epi != 0):
+        torch.save(agent.state_dict(), './model_weights/model_'+str(epoch))
