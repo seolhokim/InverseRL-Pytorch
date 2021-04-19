@@ -5,11 +5,11 @@ import torch.optim as optim
 
 import numpy as np
 
-from networks.network import Actor, Critic
+from networks.agent_network import Actor, Critic
 from utils.utils import Rollouts
 
 class PPO(nn.Module):
-    def __init__(self,writer,device,state_dim,action_dim,hidden_dim,\
+    def __init__(self,writer,device,layer_num,state_dim,action_dim,hidden_dim,activation_function,\
                  expert_state_location,\
                 expert_action_location,\
                 expert_next_state_location,expert_done_location,\
@@ -40,9 +40,8 @@ class PPO(nn.Module):
         f = open(expert_done_location,'rb')
         self.expert_dones = torch.tensor(np.concatenate([np.load(f) for _ in range(file_size)])).float().unsqueeze(-1)
         f.close()
-        
-        self.actor = Actor(state_dim,action_dim,hidden_dim)
-        self.critic = Critic(state_dim,hidden_dim)
+        self.actor = Actor(layer_num, state_dim, action_dim, hidden_dim, activation_function)
+        self.critic = Critic(layer_num, state_dim, 1, hidden_dim, activation_function)
         
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=ppo_lr)
         self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=ppo_lr)

@@ -1,5 +1,4 @@
 from agents.agent import PPO
-#from discriminators.discriminator import Discriminator,
 from discriminators.gail import GAIL
 from discriminators.vail import VAIL
 from discriminators.airl import AIRL
@@ -16,7 +15,7 @@ env = gym.make("Hopper-v2")
 
 action_space = env.action_space.shape[0]
 state_space = env.observation_space.shape[0]
-hidden_dim = 64
+
 
 expert_state_location = './expert_data/hopper_expert_states.npy'
 expert_action_location = './expert_data/hopper_expert_actions.npy'
@@ -31,13 +30,15 @@ lmbda         = 0.95
 eps_clip      = 0.2
 K_epoch       = 10
 z_dim = 4
-hidden_size = 64
+hidden_space = 64 #agent
+hidden_dim = 64 #discriminator
 ppo_batch_size = 64
 GAIL_batch_size = 512
 VAIL_batch_size = 512
 discriminator_batch_size = VAIL_batch_size
 T_horizon     = 2048
-
+agent_layer_num = 3
+agent_activation_function = torch.tanh
 dual_stepsize = 1e-5
 mutual_info_constraint = 0.5
 state_only = True
@@ -46,19 +47,21 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 writer = SummaryWriter()
 
-agent = PPO(writer,device,state_space,action_space,hidden_size,\
+agent = PPO(writer,device,agent_layer_num,state_space,action_space,hidden_space,agent_activation_function,\
             expert_state_location,\
             expert_action_location,\
             expert_next_state_location,\
             expert_done_location,\
            entropy_coef,critic_coef,ppo_lr,gamma,lmbda,eps_clip,\
             K_epoch,ppo_batch_size)
-is_airl = True
+#is_airl = True
+
 #discriminator = AIRL(writer, device, state_space,action_space,hidden_size,discriminator_lr,gamma,state_only)
-discriminator = VAIRL(writer, device, state_space,action_space,hidden_size,z_dim,\
-                                   discriminator_lr,gamma,state_only,dual_stepsize,mutual_info_constraint)
+#discriminator = VAIRL(writer, device, state_space,action_space,hidden_size,z_dim,discriminator_lr,gamma,state_only,dual_stepsize,mutual_info_constraint)
+
+is_airl = False
 #discriminator = GAIL(writer,device,state_space, action_space, hidden_dim,discriminator_lr)
-#discriminator = VAIL(writer,device,state_space, action_space, hidden_dim,z_dim,discriminator_lr,dual_stepsize,mutual_info_constraint)
+discriminator = VAIL(writer,device,state_space, action_space, hidden_dim,z_dim,discriminator_lr,dual_stepsize,mutual_info_constraint)
 if torch.cuda.is_available():
     agent = agent.cuda()
     discriminator = discriminator.cuda()
@@ -77,7 +80,7 @@ for n_epi in range(1001):
     for t in range(T_horizon):
         state_lst.append(s_)
         mu,sigma = agent.pi(torch.from_numpy(s).float().to(device))
-        dist = torch.distributions.Normal(mu,sigma)
+        dist = torch.distributions.Normal(mu,sigma[0])
 
         action = dist.sample()
         log_prob = dist.log_prob(action).sum(-1,keepdim = True)
