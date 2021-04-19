@@ -1,5 +1,5 @@
+
 from agents.agent import PPO
-#from discriminators.discriminator import Discriminator,
 from discriminators.gail import GAIL
 from discriminators.vail import VAIL
 from discriminators.airl import AIRL
@@ -42,7 +42,7 @@ agent_layer_num = 3
 agent_activation_function = torch.tanh
 dual_stepsize = 1e-5
 mutual_info_constraint = 0.5
-state_only = True
+
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
@@ -56,17 +56,20 @@ agent = PPO(writer,device,agent_layer_num,state_space,action_space,hidden_space,
            entropy_coef,critic_coef,ppo_lr,gamma,lmbda,eps_clip,\
             K_epoch,ppo_batch_size)
 '''
+state_only = True
 is_airl = True
 airl_layer_num = 3
 airl_activation_function = torch.tanh
 airl_last_activation = None
 discriminator = AIRL(writer, device, state_space,action_space,hidden_dim,discriminator_lr,gamma,state_only,\
                      airl_layer_num, airl_activation_function, airl_last_activation)
+
 '''
+
 '''
+state_only = True
 is_airl = True
 discriminator = VAIRL(writer, device, state_space,action_space,hidden_dim,z_dim,discriminator_lr,gamma,state_only,dual_stepsize,mutual_info_constraint)
-
 '''
 
 '''
@@ -77,14 +80,12 @@ gail_last_activation = torch.sigmoid
 discriminator = GAIL(writer,device,gail_layer_num,\
                      state_space, action_space, hidden_dim,gail_activation_function,\
                      gail_last_activation,discriminator_lr)
-
 '''
 
 
 is_airl = False
 vail_epoch = 3
 discriminator = VAIL(writer,device,state_space, action_space, hidden_dim,z_dim,discriminator_lr,dual_stepsize,mutual_info_constraint,vail_epoch)
-
 
 
 
@@ -110,12 +111,11 @@ for n_epi in range(1001):
 
         action = dist.sample()
         log_prob = dist.log_prob(action).sum(-1,keepdim = True)
-        prob = dist.log_prob(action).exp().prod(-1,keepdim = True).detach()
         s_prime_, r, done, info = env.step(action.unsqueeze(0).cpu().numpy())
         s_prime = np.clip((s_prime_ - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5)
         if is_airl:
             reward = discriminator.get_reward(\
-                        prob,
+                        log_prob.exp(),
                         torch.tensor(s).unsqueeze(0).float().to(device),action.unsqueeze(0),\
                         torch.tensor(s_prime).unsqueeze(0).float().to(device),\
                                               torch.tensor(done).unsqueeze(0)\
