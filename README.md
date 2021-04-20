@@ -16,3 +16,5 @@
 * add SQIL
 * add more environments(ant and disabled ant)
 * build setup file
+* make expert
+* make trajectories by expert
