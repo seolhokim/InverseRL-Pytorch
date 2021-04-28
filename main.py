@@ -132,4 +132,4 @@ for n_epi in range(args.epoch):
         print("# of episode :{}, avg score : {:.1f}".format(n_epi, sum(score_lst)/len(score_lst)))
         score_lst = []
     if (n_epi % args.save_interval == 0 )& (n_epi != 0):
-        torch.save(agent.state_dict(), './model_weights/model_'+str(epoch))
+        torch.save(agent.state_dict(), './model_weights/model_'+str(n_epi))
