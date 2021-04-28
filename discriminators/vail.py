@@ -33,7 +33,7 @@ class VAIL(Discriminator):
         x = torch.cat((state,action),-1)
         mu = self.vdb.get_mean(x)
         x = torch.sigmoid(self.fc3(torch.relu(mu)))
-        return -torch.log(x +1e-3).detach()
+        return -torch.log((1-x)+1e-3).detach()
     
     def get_latent_kl_div(self,mu,logvar):
         return torch.mean(-logvar+(torch.square(mu)+torch.square(torch.exp(logvar))-1.)/2.)
@@ -42,11 +42,11 @@ class VAIL(Discriminator):
         for i in range(self.epoch):
             expert_cat = torch.cat((torch.tensor(expert_s),torch.tensor(expert_a)),-1)
             expert_preds,expert_mu,expert_std = self.forward(expert_cat.float().to(self.device),get_dist = True)
-            expert_loss = self.criterion(expert_preds,torch.zeros(expert_preds.shape[0],1).to(self.device))
+            expert_loss = self.criterion(expert_preds,torch.ones(expert_preds.shape[0],1).to(self.device))
 
             agent_cat = torch.cat((agent_s,agent_a),-1)
             agent_preds,agent_mu,agent_std = self.forward(agent_cat.float().to(self.device),get_dist = True)
-            agent_loss = self.criterion(agent_preds,torch.ones(agent_preds.shape[0],1).to(self.device))
+            agent_loss = self.criterion(agent_preds,torch.zeros(agent_preds.shape[0],1).to(self.device))
             
             expert_bottleneck_loss = self.get_latent_kl_div(expert_mu,expert_std)
             agent_bottleneck_loss = self.get_latent_kl_div(agent_mu,agent_std)
