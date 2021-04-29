@@ -7,13 +7,13 @@
 * GAIL(Generative Adversarial Imitation Learning)
 * VAIL(Variational Adversarial Imitation Learning)
 * AIRL(Adversarial Inverse Reinforcement Learning)
-  * merge function h and value function(Not working well)
+  * merge function h and value function(Not working)
 * VAIRL(Variational Adversarial Inverse Reinforcement Learning)
   * joint gaussian distribution kl-divergence yet
-
+* EAIRL(Empowerment-regularized Adversarial Inverse Reinforcement Learning)
+  * Debugging mode!!!!
 ## TODO
 * add SAC
-* add EAIRL
 * add SQIL
 * add more environments(ant and disabled ant)
 * build setup file
