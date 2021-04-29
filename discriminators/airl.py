@@ -21,8 +21,7 @@ class AIRL(Discriminator):
         return (exp_f/(exp_f + prob))
     def get_reward(self,prob,state,action,next_state,done):
         d = self.get_d(prob,state,action,next_state,done)
-        #return (torch.log(d+1e-3) - torch.log(1-d)+1e-3).detach()
-        return -torch.log(d).detach()
+        return (-torch.log((1-d)+1e-3) + torch.log(d+1e-3)).detach()
     def forward(self,prob,state,action,next_state,done):
         d = (self.get_d(prob,state,action,next_state,done))
         return d
@@ -30,10 +29,10 @@ class AIRL(Discriminator):
     def train_discriminator(self,writer,n_epi,agent_s,agent_a,agent_next_s,agent_prob,agent_done,expert_s,expert_a,expert_next_s,expert_prob,expert_done):
         
         expert_preds = self.forward(expert_prob,expert_s,expert_a,expert_next_s,expert_done)
-        expert_loss = self.criterion(expert_preds,torch.zeros(expert_preds.shape[0],1).to(self.device)) 
+        expert_loss = self.criterion(expert_preds,torch.ones(expert_preds.shape[0],1).to(self.device)) 
         
         agent_preds = self.forward(agent_prob,agent_s,agent_a,agent_next_s,agent_done)
-        agent_loss = self.criterion(agent_preds,torch.ones(agent_preds.shape[0],1).to(self.device))
+        agent_loss = self.criterion(agent_preds,torch.zeros(agent_preds.shape[0],1).to(self.device))
         
         loss = expert_loss+agent_loss
         expert_acc = ((expert_preds < 0.5).float()).mean()
