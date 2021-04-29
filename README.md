@@ -7,11 +7,11 @@
 * GAIL(Generative Adversarial Imitation Learning)
 * VAIL(Variational Adversarial Imitation Learning)
 * AIRL(Adversarial Inverse Reinforcement Learning)
-  * merge function h and value function
+  * Two value functions must be merged into one.
 * VAIRL(Variational Adversarial Inverse Reinforcement Learning)
-  * joint gaussian distribution kl-divergence yet
+  * joint gaussian distribution kl-divergence yet.
 * EAIRL(Empowerment-regularized Adversarial Inverse Reinforcement Learning)
-  * merge function h and value function
+  * Two value functions must be merged into one.
 ## TODO
 * add SAC
 * add SQIL
