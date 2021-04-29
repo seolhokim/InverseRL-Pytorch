@@ -14,7 +14,7 @@ class PPO(nn.Module):
                 expert_action_location,\
                 expert_next_state_location,expert_done_location,\
                 entropy_coef,critic_coef,ppo_lr,gamma,lmbda,eps_clip,\
-                K_epoch,ppo_batch_size): 
+                K_epoch,ppo_batch_size,trainable_std): 
         super(PPO, self).__init__()
         self.writer = writer
         self.device = device
@@ -40,7 +40,7 @@ class PPO(nn.Module):
         f = open(expert_done_location,'rb')
         self.expert_dones = torch.tensor(np.concatenate([np.load(f) for _ in range(file_size)])).float().unsqueeze(-1)
         f.close()
-        self.actor = Actor(layer_num, state_dim, action_dim, hidden_dim, activation_function)
+        self.actor = Actor(layer_num, state_dim, action_dim, hidden_dim, activation_function,trainable_std)
         self.critic = Critic(layer_num, state_dim, 1, hidden_dim, activation_function)
         
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=ppo_lr)

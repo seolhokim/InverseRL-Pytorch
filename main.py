@@ -57,7 +57,7 @@ if args.agent == 'ppo':
                 expert_next_state_location,\
                 expert_done_location,\
                float(parser[args.agent]['entropy_coef']),float(parser[args.agent]['critic_coef']),float(parser[args.agent]['lr']),float(parser[args.agent]['gamma']),\
-                float(parser[args.agent]['lmbda']),float(parser[args.agent]['eps_clip']),int(parser[args.agent]['K_epoch']),int(parser[args.agent]['batch_size']))
+                float(parser[args.agent]['lmbda']),float(parser[args.agent]['eps_clip']),int(parser[args.agent]['K_epoch']),int(parser[args.agent]['batch_size']),bool(strtobool(parser[args.agent]['trainable_std'])
 else:
     raise NotImplementedError
 
