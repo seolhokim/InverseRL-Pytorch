@@ -40,8 +40,9 @@ class PPO(nn.Module):
         f = open(expert_done_location,'rb')
         self.expert_dones = torch.tensor(np.concatenate([np.load(f) for _ in range(file_size)])).float().unsqueeze(-1)
         f.close()
-        self.actor = Actor(layer_num, state_dim, action_dim, hidden_dim, activation_function,trainable_std)
-        self.critic = Critic(layer_num, state_dim, 1, hidden_dim, activation_function)
+        last_activation = None
+        self.actor = Actor(layer_num, state_dim, action_dim, hidden_dim, activation_function,last_activation,trainable_std)
+        self.critic = Critic(layer_num, state_dim, 1, hidden_dim, activation_function,last_activation)
         
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=ppo_lr)
         self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=ppo_lr)
