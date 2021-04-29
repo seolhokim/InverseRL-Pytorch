@@ -3,6 +3,7 @@ from discriminators.gail     import GAIL
 from discriminators.vail     import VAIL
 from discriminators.airl     import AIRL
 from discriminators.vairl    import VAIRL
+from discriminators.eairl    import EAIRL
 from utils.utils             import RunningMeanStd
 
 import os
@@ -74,6 +75,13 @@ elif args.discriminator == 'gail':
                          eval(parser[args.discriminator]['last_activation']),float(parser[args.discriminator]['lr']))
 elif args.discriminator == 'vail':
     discriminator = VAIL(writer,device,state_space, action_space, int(parser[args.discriminator]['hidden_space']),int(parser[args.discriminator]['z_dim']),float(parser[args.discriminator]['lr']),float(parser[args.discriminator]['dual_stepsize']),float(parser[args.discriminator]['mutual_info_constraint']),int(parser[args.discriminator]['epoch']))
+elif args.discriminator == 'eairl':
+    discriminator = EAIRL(writer, device, state_space, action_space, int(parser[args.discriminator]['hidden_space']), \
+                         float(parser[args.discriminator]['lr']),float(parser[args.discriminator]['beta']),\
+                         float(parser[args.discriminator]['gamma']),int(parser[args.discriminator]['update_cycle']),\
+                          bool(strtobool(parser[args.discriminator]['state_only'])),\
+                         int(parser[args.discriminator]['layer_num']), eval(parser[args.discriminator]['activation_function']), \
+                         eval(parser[args.discriminator]['last_activation']), bool(strtobool(parser[args.agent]['trainable_std'])))
 else:
     raise NotImplementedError
     

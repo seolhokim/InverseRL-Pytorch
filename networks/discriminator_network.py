@@ -83,3 +83,50 @@ class VariationalH(nn.Module):
             return x
         else:
             return x,mu,std
+        
+        
+class Q_phi(Network):
+    def __init__(self,layer_num, input_dim, output_dim, hidden_dim, activation_function ,last_activation = None,trainable_std = False):
+        '''
+        self.q_network 
+        input : s, next_s
+        output : mean,std
+        target : action
+        '''
+        self.trainable_std = trainable_std
+        if self.trainable_std == True:
+            self.logstd = nn.Parameter(torch.zeros(1, output_dim))
+        super(Q_phi,self).__init__(layer_num,input_dim*2, output_dim, hidden_dim, activation_function ,last_activation)
+        
+    def forward(self,state,next_state):
+        x = torch.cat((state,next_state),-1)
+        mu = self._forward(x)
+        if self.trainable_std == True :
+            std = torch.exp(self.logstd)
+        else:
+            logstd = torch.zeros_like(mu)
+            std = torch.exp(logstd)
+        return mu,std
+    
+class Empowerment(Network):
+    def __init__(self,layer_num, input_dim, output_dim, hidden_dim, activation_function ,last_activation = None):
+        super(Empowerment,self).__init__(layer_num,input_dim, 1, hidden_dim, activation_function ,last_activation)
+        '''
+        self.phi
+        input : s
+        output : scalar
+        '''
+    def forward(self,x):
+        return self._forward(x)
+    
+class Reward(Network):
+    def __init__(self,layer_num, input_dim, output_dim, hidden_dim, activation_function ,last_activation = None):
+        super(Reward,self).__init__(layer_num,input_dim+output_dim, 1, hidden_dim, activation_function ,last_activation)
+        '''
+        self.reward
+        input : s,a
+        output : scalar
+        '''
+    def forward(self,state,action):
+        x = torch.cat((state,action),-1)
+        return self._forward(x)
