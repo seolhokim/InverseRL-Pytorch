@@ -66,10 +66,10 @@ class EAIRL(Discriminator):
         self.empowerment_optimizer.step()
         
         expert_preds = self.forward(expert_prob,expert_s,expert_a,expert_next_s,expert_done)
-        expert_loss = self.criterion(expert_preds,torch.zeros(expert_preds.shape[0],1).to(self.device)) 
+        expert_loss = self.criterion(expert_preds,torch.ones(expert_preds.shape[0],1).to(self.device)) 
         
         agent_preds = self.forward(agent_prob,agent_s,agent_a,agent_next_s,agent_done)
-        agent_loss = self.criterion(agent_preds,torch.ones(agent_preds.shape[0],1).to(self.device))
+        agent_loss = self.criterion(agent_preds,torch.zeros(agent_preds.shape[0],1).to(self.device))
         
         reward_loss = expert_loss+agent_loss
         self.reward_optimizer.zero_grad()
