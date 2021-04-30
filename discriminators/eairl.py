@@ -33,10 +33,11 @@ class EAIRL(Discriminator):
     def get_f(self,state,next_state,action,done):
         return self.reward(state,action) + self.gamma * self.empowerment_t(next_state) - self.empowerment(state)
 
-    def get_reward(self,prob,state,action,next_state,done):
-        #return self.get_f(state,next_state,action,done) - torch.log(prob)
-        d = self.get_d(state,next_state,action,done,prob)
-        return (-torch.log((1-d)+1e-3) ).detach()#+ torch.log(d+1e-3)
+    def get_reward(self,log_prob,state,action,next_state,done):
+        
+        #d = self.get_d(state,next_state,action,done,prob)
+        #return (-torch.log((1-d)+1e-3) ).detach()#+ torch.log(d+1e-3)
+        return (self.get_f(state,next_state,action,done) - log_prob - self.i_lamdba * self.get_loss_i(state,next_state,action,log_prob.exp())).detach() 
     def get_loss_q(self,state,next_state,action):
         mu,sigma = self.q_phi(state,next_state)
         loss = self.mse(mu,action)
