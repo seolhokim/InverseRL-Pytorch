@@ -9,11 +9,11 @@
 * AIRL(Adversarial Inverse Reinforcement Learning)
   * Two value functions must be merged into one.
 * VAIRL(Variational Adversarial Inverse Reinforcement Learning)
-  * joint gaussian distribution kl-divergence yet.
+  * Joint gaussian distribution kl-divergence yet.
 * EAIRL(Empowerment-regularized Adversarial Inverse Reinforcement Learning)
   * Two value functions must be merged into one.
-  * reward
-  * target empowerment must be updated in policy learning step. how?
+  * Target empowerment must be updated in policy learning step. how?
+  * It shows sudden divergence problem.
 ## TODO
 * add SAC
 * add SQIL
