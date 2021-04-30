@@ -6,7 +6,7 @@ import torch.nn as nn
 
     
 class EAIRL(Discriminator):
-    def __init__(self,writer, device, state_dim, action_dim, hidden_dim,discriminator_lr,beta = 1, gamma = 0.99,update_cycle = 5, state_only = False, layer_num = 3, activation_function = torch.tanh, last_activation = None,trainable_std = False):
+    def __init__(self,writer, device, state_dim, action_dim, hidden_dim,discriminator_lr,beta = 1, gamma = 0.99,i_lambda = 0.001, update_cycle = 5, state_only = False, layer_num = 3, activation_function = torch.tanh, last_activation = None,trainable_std = False):
         super(EAIRL, self).__init__()
         self.writer = writer
         self.device = device
@@ -25,6 +25,7 @@ class EAIRL(Discriminator):
         self.update_cycle = update_cycle
         self.beta = beta
         self.gamma = gamma
+        self.i_lamdba = i_lamdba
         self.iter = 0
     def get_d(self,state,next_state,action,done,prob):
         exp_f = torch.exp(self.get_f(state,next_state,action,done))
