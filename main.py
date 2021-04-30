@@ -51,16 +51,7 @@ if args.tensorboard:
     writer = SummaryWriter()
 else:
     writer = None
-if args.agent == 'ppo':
-    agent = PPO(writer,device,int(parser[args.agent]['agent_layer_num']),state_space,action_space,int(parser[args.agent]['hidden_space']),eval(parser[args.agent]['agent_activation_function']),\
-                expert_state_location,\
-                expert_action_location,\
-                expert_next_state_location,\
-                expert_done_location,\
-               float(parser[args.agent]['entropy_coef']),float(parser[args.agent]['critic_coef']),float(parser[args.agent]['lr']),float(parser[args.agent]['gamma']),\
-                float(parser[args.agent]['lmbda']),float(parser[args.agent]['eps_clip']),int(parser[args.agent]['K_epoch']),int(parser[args.agent]['batch_size']),bool(strtobool(parser[args.agent]['trainable_std'])))
-else:
-    raise NotImplementedError
+
 
 if args.discriminator == 'airl':
     discriminator = AIRL(writer, device, state_space,action_space,int(parser[args.discriminator]['hidden_space']),
@@ -86,6 +77,18 @@ elif args.discriminator == 'eairl':
 else:
     raise NotImplementedError
     
+if args.agent == 'ppo':
+    agent = PPO(writer,device,int(parser[args.agent]['agent_layer_num']),state_space,action_space,int(parser[args.agent]['hidden_space']),eval(parser[args.agent]['agent_activation_function']),\
+                expert_state_location,\
+                expert_action_location,\
+                expert_next_state_location,\
+                expert_done_location,\
+               float(parser[args.agent]['entropy_coef']),float(parser[args.agent]['critic_coef']),float(parser[args.agent]['lr']),float(parser[args.agent]['gamma']),\
+                float(parser[args.agent]['lmbda']),float(parser[args.agent]['eps_clip']),int(parser[args.agent]['K_epoch']),int(parser[args.agent]['batch_size']),\
+                bool(strtobool(parser[args.agent]['trainable_std']))\
+               )#
+else:
+    raise NotImplementedError
 if device == 'cuda':
     agent = agent.cuda()
     discriminator = discriminator.cuda()
@@ -123,7 +126,7 @@ for n_epi in range(args.epoch):
             reward = discriminator.get_reward(torch.tensor(s).unsqueeze(0).float().to(device),action.unsqueeze(0)).item()
         agent.put_data((s, action, reward/10., s_prime, \
                         log_prob.detach().cpu().numpy(), done))
-        score += r
+        score += r 
         if done:
             s_ = (env.reset())
             s = np.clip((s_ - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5)
