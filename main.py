@@ -78,7 +78,8 @@ elif args.discriminator == 'vail':
 elif args.discriminator == 'eairl':
     discriminator = EAIRL(writer, device, state_space, action_space, int(parser[args.discriminator]['hidden_space']), \
                          float(parser[args.discriminator]['lr']),float(parser[args.discriminator]['beta']),\
-                         float(parser[args.discriminator]['gamma']),int(parser[args.discriminator]['update_cycle']),\
+                         float(parser[args.discriminator]['gamma']),float(parser[args.discriminator]['i_lambda']),\
+                          int(parser[args.discriminator]['update_cycle']),\
                           bool(strtobool(parser[args.discriminator]['state_only'])),\
                          int(parser[args.discriminator]['layer_num']), eval(parser[args.discriminator]['activation_function']), \
                          eval(parser[args.discriminator]['last_activation']), bool(strtobool(parser[args.agent]['trainable_std'])))
