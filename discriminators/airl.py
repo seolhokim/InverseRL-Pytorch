@@ -19,9 +19,11 @@ class AIRL(Discriminator):
     def get_d(self,prob,state,action,next_state,done):
         exp_f = torch.exp(self.get_f(state,action,next_state,done))
         return (exp_f/(exp_f + prob))
-    def get_reward(self,prob,state,action,next_state,done):
-        d = self.get_d(prob,state,action,next_state,done)
-        return (-torch.log((1-d)+1e-3) ).detach()#+ torch.log(d+1e-3)
+    def get_reward(self,log_prob,state,action,next_state,done):
+        #d = self.get_d(prob,state,action,next_state,done)
+        ##return (-torch.log((1-d)+1e-3) ).detach()#+ torch.log(d+1e-3)
+        #return (-torch.log((1-d)+1e-3) + torch.log(d+1e-3)).detach()
+        return (self.get_f(state,action,next_state,done) - log_prob).detach()
     def forward(self,prob,state,action,next_state,done):
         d = (self.get_d(prob,state,action,next_state,done))
         return d
