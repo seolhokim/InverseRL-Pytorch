@@ -8,13 +8,12 @@
 * VAIL(Variational Adversarial Imitation Learning)
 * AIRL(Adversarial Inverse Reinforcement Learning)
   * Two value functions must be merged into one.
-  * change reward
 * VAIRL(Variational Adversarial Inverse Reinforcement Learning)
   * joint gaussian distribution kl-divergence yet.
 * EAIRL(Empowerment-regularized Adversarial Inverse Reinforcement Learning)
   * Two value functions must be merged into one.
-  * change reward
-  * target empowerment is updated when policy is updated in paper(how?)
+  * reward
+  * target empowerment must be updated in policy learning step. how?
 ## TODO
 * add SAC
 * add SQIL
