@@ -14,6 +14,7 @@
 * EAIRL(Empowerment-regularized Adversarial Inverse Reinforcement Learning)
   * Two value functions must be merged into one.
   * change reward
+  * target empowerment is updated when policy is updated in paper(how?)
 ## TODO
 * add SAC
 * add SQIL
