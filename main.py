@@ -113,7 +113,7 @@ for n_epi in range(args.epoch):
         s_prime = np.clip((s_prime_ - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5)
         if bool(strtobool(parser[args.discriminator]['is_airl'])):
             reward = discriminator.get_reward(\
-                        log_prob.exp(),
+                        log_prob,
                         torch.tensor(s).unsqueeze(0).float().to(device),action.unsqueeze(0),\
                         torch.tensor(s_prime).unsqueeze(0).float().to(device),\
                                               torch.tensor(done).unsqueeze(0)\
