@@ -32,10 +32,11 @@ class EAIRL(Discriminator):
         return exp_f / (exp_f+prob) 
     
     def get_f(self,state,next_state,action,done):
-        return self.reward(state,action) + self.gamma * self.empowerment_t(next_state).detach() - self.empowerment(state).detach()
+        return self.reward(state,action) +\
+    self.gamma * self.empowerment_t(next_state).detach() - self.empowerment(state).detach()
 
     def get_reward(self,log_prob,state,action,next_state,done):
-        return (self.get_f(state,next_state,action,done) - log_prob - self.i_lambda * self.get_loss_i(state,next_state,action,log_prob.exp()))#.detach() 
+        return (self.get_f(state,next_state,action,done) - log_prob - self.i_lambda * self.get_loss_i(state,next_state,action,log_prob.exp())).detach() 
     def get_loss_q(self,state,next_state,action):
         mu,sigma = self.q_phi(state,next_state)
         loss = self.mse(mu,action)
@@ -44,8 +45,6 @@ class EAIRL(Discriminator):
     def get_loss_i(self,state,next_state,action,pi_prob):
         mu,sigma = self.q_phi(state,next_state)
         dist = torch.distributions.Normal(mu,sigma)
-        #q_action = dist.sample()
-        #q_log_prob = dist.log_prob(q_action).sum(-1,keepdim=True).detach()
         q_log_prob = dist.log_prob(action).sum(-1,keepdim=True).detach()
         approx_1 = self.beta * q_log_prob
         approx_2 = torch.log(pi_prob) + self.empowerment(state)
@@ -55,7 +54,8 @@ class EAIRL(Discriminator):
     def forward(self,prob,state,action,next_state,done):
         return self.get_d(state,next_state,action,done,prob)
         
-    def train_discriminator(self,writer,n_epi,agent_s,agent_a,agent_next_s,agent_prob,agent_done,expert_s,expert_a,expert_next_s,expert_prob,expert_done):
+    def train_discriminator(self,writer,n_epi,agent_s,agent_a,agent_next_s,\
+                            agent_prob,agent_done,expert_s,expert_a,expert_next_s,expert_prob,expert_done):
         
         loss_q = self.get_loss_q(agent_s,agent_next_s,agent_a)
         self.q_phi_optimizer.zero_grad()
