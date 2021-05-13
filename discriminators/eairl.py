@@ -25,20 +25,17 @@ class EAIRL(Discriminator):
         self.update_cycle = update_cycle
         self.beta = beta
         self.gamma = gamma
-        self.i_lamdba = i_lamdba
+        self.i_lambda = i_lambda
         self.iter = 0
     def get_d(self,state,next_state,action,done,prob):
         exp_f = torch.exp(self.get_f(state,next_state,action,done))
         return exp_f / (exp_f+prob) 
     
     def get_f(self,state,next_state,action,done):
-        return self.reward(state,action) + self.gamma * self.empowerment_t(next_state) - self.empowerment(state)
+        return self.reward(state,action) + self.gamma * self.empowerment_t(next_state).detach() - self.empowerment(state).detach()
 
     def get_reward(self,log_prob,state,action,next_state,done):
-        
-        #d = self.get_d(state,next_state,action,done,prob)
-        #return (-torch.log((1-d)+1e-3) ).detach()#+ torch.log(d+1e-3)
-        return (self.get_f(state,next_state,action,done) - log_prob - self.i_lamdba * self.get_loss_i(state,next_state,action,log_prob.exp())).detach() 
+        return (self.get_f(state,next_state,action,done) - log_prob - self.i_lambda * self.get_loss_i(state,next_state,action,log_prob.exp()))#.detach() 
     def get_loss_q(self,state,next_state,action):
         mu,sigma = self.q_phi(state,next_state)
         loss = self.mse(mu,action)
@@ -47,6 +44,8 @@ class EAIRL(Discriminator):
     def get_loss_i(self,state,next_state,action,pi_prob):
         mu,sigma = self.q_phi(state,next_state)
         dist = torch.distributions.Normal(mu,sigma)
+        #q_action = dist.sample()
+        #q_log_prob = dist.log_prob(q_action).sum(-1,keepdim=True).detach()
         q_log_prob = dist.log_prob(action).sum(-1,keepdim=True).detach()
         approx_1 = self.beta * q_log_prob
         approx_2 = torch.log(pi_prob) + self.empowerment(state)
