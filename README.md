@@ -7,13 +7,11 @@
 * GAIL(Generative Adversarial Imitation Learning)
 * VAIL(Variational Adversarial Imitation Learning)
 * AIRL(Adversarial Inverse Reinforcement Learning)
-  * Two value functions must be merged into one.
+  * Two value functions can be merged into one.
 * VAIRL(Variational Adversarial Inverse Reinforcement Learning)
   * Joint gaussian distribution kl-divergence yet.
 * EAIRL(Empowerment-regularized Adversarial Inverse Reinforcement Learning)
-  * Two value functions must be merged into one.
-  * Target empowerment must be updated in policy learning step. how?
-  * It shows sudden divergence problem.
+  * Two value functions can be merged into one.
 ## TODO
 * add SAC
 * add SQIL
