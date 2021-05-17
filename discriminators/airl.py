@@ -15,7 +15,7 @@ class AIRL(Discriminator):
         self.optimizer = torch.optim.Adam(self.parameters(), lr=discriminator_lr)
         self.network_init()
     def get_f(self,state,action,next_state,done_mask):
-        return self.g(state,action) + (done_mask.float()) * self.gamma * self.h(next_state) - self.h(state)
+        return self.g(state,action) + done_mask.float() * (self.gamma * self.h(next_state) - self.h(state))
     def get_d(self,prob,state,action,next_state,done_mask):
         exp_f = torch.exp(self.get_f(state,action,next_state,done_mask))
         return (exp_f/(exp_f + prob))
