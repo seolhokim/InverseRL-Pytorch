@@ -68,9 +68,10 @@ class PPO(nn.Module):
             expert_s = np.clip((expert_s - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5)
             self.train_discriminator(writer,discriminator,n_epi,agent_s,agent_a,expert_s,expert_a)
         else:
-            agent_s,agent_a,agent_next_s,agent_done = self.data.choose_s_a_nexts_done_batch(discriminator_batch_size,s_,a_,s_prime_,done_mask_)
+            agent_s,agent_a,agent_next_s,agent_done_mask = self.data.choose_s_a_nexts_done_batch(discriminator_batch_size,s_,a_,s_prime_,done_mask_)
             expert_s,expert_a,expert_next_s,expert_done = self.data.choose_s_a_nexts_done_batch(discriminator_batch_size,self.expert_states,self.expert_actions,self.expert_next_states,self.expert_dones) 
-
+            expert_done_mask = (1 - expert_done.float())
+            
             expert_s = np.clip((expert_s - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5).float()
             expert_next_s = np.clip((expert_next_s - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5).float()
             
@@ -83,17 +84,19 @@ class PPO(nn.Module):
             dist = torch.distributions.Normal(mu,sigma)
             action = dist.sample()
             expert_prob = dist.log_prob(action).exp().prod(-1,keepdim=True).detach()
-            
 
-            self.train_airl_discriminator(writer,discriminator,n_epi,agent_s,agent_a,agent_next_s,agent_prob,agent_done,expert_s,expert_a,expert_next_s,expert_prob,expert_done)
+            self.train_airl_discriminator(\
+                                          writer,discriminator,n_epi,agent_s,agent_a,agent_next_s,\
+                                          agent_prob,agent_done_mask,expert_s,expert_a,expert_next_s,expert_prob,expert_done_mask)
+
 
 
         self.train_ppo(writer,n_epi,s_, a_, r_, s_prime_, done_mask_, old_log_prob_)
     def train_discriminator(self,writer,discriminator,n_epi,agent_s,agent_a,expert_s,expert_a):
         discriminator.train_discriminator(writer,n_epi,agent_s,agent_a,expert_s,expert_a)
     def train_airl_discriminator(self,writer,discriminator,n_epi,agent_s,agent_a,\
-                            agent_next_s,agent_prob,agent_done,expert_s,expert_a,expert_next_s,expert_prob,expert_done):
-        discriminator.train_discriminator(writer,n_epi,agent_s,agent_a,agent_next_s,agent_prob,agent_done,expert_s,expert_a,expert_next_s,expert_prob,expert_done)
+                            agent_next_s,agent_prob,agent_done_mask,expert_s,expert_a,expert_next_s,expert_prob,expert_done_mask):
+        discriminator.train_discriminator(writer,n_epi,agent_s,agent_a,agent_next_s,agent_prob,agent_done_mask,expert_s,expert_a,expert_next_s,expert_prob,expert_done_mask)
         
         
     def train_ppo(self,writer,n_epi,s_, a_, r_, s_prime_, done_mask_, old_log_prob_):
