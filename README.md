@@ -13,7 +13,6 @@
 * EAIRL(Empowerment-regularized Adversarial Inverse Reinforcement Learning)
   * Two value functions can be merged into one.
 ## TODO
-* add SAC
 * add SQIL
 * add more environments(ant and disabled ant)
 * build setup file
