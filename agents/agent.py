@@ -32,7 +32,11 @@ class Agent(nn.Module):
         self.brain = algorithm
         
     def get_action(self,x):
-        return self.brain.actor(x)
+        mu,std = self.brain.get_dist(x)
+        dist = torch.distributions.Normal(mu,std)
+        action = dist.sample()
+        log_prob = dist.log_prob(action).sum(-1,keepdim = True)
+        return action, log_prob
     
     def put_data(self,transition):
         self.data.put_data(transition)
@@ -55,15 +59,11 @@ class Agent(nn.Module):
             expert_s = np.clip((expert_s - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5).float()
             expert_next_s = np.clip((expert_next_s - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5).float()
             
-            mu,sigma = self.get_action(agent_s.float().to(self.device))
-            dist = torch.distributions.Normal(mu,sigma)
-            action = dist.sample()
-            agent_prob = dist.log_prob(action).exp().prod(-1,keepdim=True).detach()
+            _, agent_log_prob = self.get_action(agent_s.float().to(self.device))
+            agent_prob = agent_log_prob.exp().detach()
             
-            mu,sigma = self.get_action(expert_s.float().to(self.device))
-            dist = torch.distributions.Normal(mu,sigma)
-            action = dist.sample()
-            expert_prob = dist.log_prob(action).exp().prod(-1,keepdim=True).detach()
+            _, expert_log_prob = self.get_action(expert_s.float().to(self.device))
+            expert_prob = expert_log_prob.exp().detach()
 
             self.train_discriminator(discriminator, n_epi, agent_s, agent_a, agent_next_s,\
                                           agent_prob, agent_done_mask, expert_s, expert_a, expert_next_s, expert_prob, expert_done_mask)

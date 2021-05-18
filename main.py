@@ -87,11 +87,8 @@ for n_epi in range(args.epoch):
         if args.render:    
             env.render()
         state_lst.append(state_)
-        mu,sigma = agent.get_action(torch.from_numpy(state).float().to(device))
-        dist = torch.distributions.Normal(mu,sigma[0])
+        action, log_prob = agent.get_action(torch.from_numpy(state).float().to(device))
 
-        action = dist.sample()
-        log_prob = dist.log_prob(action).sum(-1,keepdim = True)
         next_state_, reward, done, info = env.step(action.unsqueeze(0).cpu().numpy())
         next_state = np.clip((next_state_ - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5)
         if discriminator_args.is_airl:

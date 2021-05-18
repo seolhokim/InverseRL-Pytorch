@@ -21,7 +21,7 @@ class PPO(nn.Module):
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=args.actor_lr)
         self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=args.critic_lr)
         self.device = device
-    def get_action(self,x):
+    def get_dist(self,x):
         return self.actor(x)
     
     def v(self,x):
@@ -36,7 +36,7 @@ class PPO(nn.Module):
             for state,action,old_log_prob,advantage,return_,old_value \
             in make_mini_batch(self.args.batch_size, states, actions, \
                                            old_log_probs,advantages,returns,old_values): 
-                curr_mu,curr_sigma = self.get_action(state)
+                curr_mu,curr_sigma = self.get_dist(state)
                 value = self.v(state).float()
                 curr_dist = torch.distributions.Normal(curr_mu,curr_sigma)
                 entropy = curr_dist.entropy() * self.args.entropy_coef
