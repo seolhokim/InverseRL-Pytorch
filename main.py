@@ -94,7 +94,7 @@ for n_epi in range(args.epoch):
         log_prob = dist.log_prob(action).sum(-1,keepdim = True)
         s_prime_, r, done, info = env.step(action.unsqueeze(0).cpu().numpy())
         s_prime = np.clip((s_prime_ - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5)
-        if bool(strtobool(parser[args.discriminator]['is_airl'])):
+        if discriminator_args.is_airl:
             reward = discriminator.get_reward(\
                         log_prob,
                         torch.tensor(s).unsqueeze(0).float().to(device),action.unsqueeze(0),\
@@ -116,7 +116,7 @@ for n_epi in range(args.epoch):
         else:
             s = s_prime
             s_ = s_prime_
-    agent.train(writer,discriminator,int(parser[args.discriminator]['batch_size']),state_rms,n_epi,airl=bool(strtobool(parser[args.discriminator]['is_airl'])))
+    agent.train(writer, discriminator, discriminator_args.batch_size, state_rms, n_epi, airl = discriminator_args.is_airl)
     state_rms.update(np.vstack(state_lst))
     state_lst = []
     if n_epi%args.print_interval==0 and n_epi!=0:
