@@ -63,27 +63,23 @@ class PPO(nn.Module):
             expert_s = np.clip((expert_s - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5).float()
             expert_next_s = np.clip((expert_next_s - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5).float()
             
-            mu,sigma = self.pi(agent_s.float().to(self.device))
+            mu,sigma = self.get_action(agent_s.float().to(self.device))
             dist = torch.distributions.Normal(mu,sigma)
             action = dist.sample()
             agent_prob = dist.log_prob(action).exp().prod(-1,keepdim=True).detach()
             
-            mu,sigma = self.pi(expert_s.float().to(self.device))
+            mu,sigma = self.get_action(expert_s.float().to(self.device))
             dist = torch.distributions.Normal(mu,sigma)
             action = dist.sample()
             expert_prob = dist.log_prob(action).exp().prod(-1,keepdim=True).detach()
 
-            self.train_airl_discriminator(discriminator, n_epi, agent_s, agent_a, agent_next_s,\
+            self.train_discriminator(discriminator, n_epi, agent_s, agent_a, agent_next_s,\
                                           agent_prob, agent_done_mask, expert_s, expert_a, expert_next_s, expert_prob, expert_done_mask)
 
         self.train_ppo(n_epi,states, actions, rewards, next_states, done_masks, old_log_probs)
         
-    def train_discriminator(self, discriminator, n_epi, agent_s, agent_a, expert_s, expert_a):
-        discriminator.train_discriminator(self.writer, n_epi,agent_s,agent_a,expert_s,expert_a)
-        
-    def train_airl_discriminator(self, discriminator, n_epi, agent_s, agent_a,\
-                            agent_next_s, agent_prob, agent_done_mask, expert_s, expert_a, expert_next_s, expert_prob,expert_done_mask):
-        discriminator.train_discriminator(self.writer, n_epi, agent_s, agent_a, agent_next_s, agent_prob, agent_done_mask, expert_s, expert_a, expert_next_s, expert_prob, expert_done_mask)
+    def train_discriminator(self, discriminator, *value):
+        discriminator.train_discriminator(self.writer, *value)
         
     def train_ppo(self, n_epi, states, actions, rewards, next_states, done_masks, old_log_probs):
         old_values, advantages = self.get_gae(states, rewards, next_states, done_masks)
