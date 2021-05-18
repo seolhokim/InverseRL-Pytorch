@@ -44,18 +44,12 @@ demonstrations_location_args = Dict(parser,'demonstrations_location',True)
 agent_args = Dict(parser,args.agent)
 discriminator_args = Dict(parser,args.discriminator)
 
-expert_state_location = parser['demonstrations_location']['expert_state_location']
-expert_action_location = parser['demonstrations_location']['expert_action_location']
-expert_next_state_location = parser['demonstrations_location']['expert_next_state_location']
-expert_done_location = parser['demonstrations_location']['expert_done_location']
-
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 if args.tensorboard:
     from torch.utils.tensorboard import SummaryWriter
     writer = SummaryWriter()
 else:
     writer = None
-
 
 if args.discriminator == 'airl':
     discriminator = AIRL(writer, device, state_dim, action_dim, discriminator_args)
