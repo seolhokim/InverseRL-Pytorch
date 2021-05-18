@@ -45,7 +45,7 @@ class PPO(nn.Module):
         self.data.put_data(transition)
     
     
-    def train(self, writer, discriminator, discriminator_batch_size, state_rms, n_epi, airl = False):
+    def train(self, discriminator, discriminator_batch_size, state_rms, n_epi, airl = False):
         data = self.data.sample(shuffle = False)
         states, actions, rewards, next_states, done_masks, old_log_probs = convert_to_tensor(self.device, data['state'], data['action'], data['reward'], data['next_state'], data['done'], data['log_prob'])
 
@@ -54,7 +54,7 @@ class PPO(nn.Module):
             expert_s,expert_a = make_one_mini_batch(discriminator_batch_size, self.expert_states, self.expert_actions)
             
             expert_s = np.clip((expert_s - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5)
-            self.train_discriminator(writer, discriminator, n_epi, agent_s, agent_a, expert_s, expert_a)
+            self.train_discriminator(discriminator, n_epi, agent_s, agent_a, expert_s, expert_a)
         else:
             agent_s,agent_a,agent_next_s,agent_done_mask = make_one_mini_batch(discriminator_batch_size, states, actions, next_states, done_masks)
             expert_s,expert_a,expert_next_s,expert_done = make_one_mini_batch(discriminator_batch_size, self.expert_states, self.expert_actions, self.expert_next_states, self.expert_dones) 
@@ -73,20 +73,19 @@ class PPO(nn.Module):
             action = dist.sample()
             expert_prob = dist.log_prob(action).exp().prod(-1,keepdim=True).detach()
 
-            self.train_airl_discriminator(\
-                                          writer, discriminator, n_epi, agent_s, agent_a, agent_next_s,\
+            self.train_airl_discriminator(discriminator, n_epi, agent_s, agent_a, agent_next_s,\
                                           agent_prob, agent_done_mask, expert_s, expert_a, expert_next_s, expert_prob, expert_done_mask)
 
-        self.train_ppo(writer,n_epi,states, actions, rewards, next_states, done_masks, old_log_probs)
+        self.train_ppo(n_epi,states, actions, rewards, next_states, done_masks, old_log_probs)
         
-    def train_discriminator(self, writer, discriminator, n_epi, agent_s, agent_a, expert_s, expert_a):
-        discriminator.train_discriminator(writer, n_epi,agent_s,agent_a,expert_s,expert_a)
+    def train_discriminator(self, discriminator, n_epi, agent_s, agent_a, expert_s, expert_a):
+        discriminator.train_discriminator(self.writer, n_epi,agent_s,agent_a,expert_s,expert_a)
         
-    def train_airl_discriminator(self, writer, discriminator, n_epi, agent_s, agent_a,\
+    def train_airl_discriminator(self, discriminator, n_epi, agent_s, agent_a,\
                             agent_next_s, agent_prob, agent_done_mask, expert_s, expert_a, expert_next_s, expert_prob,expert_done_mask):
-        discriminator.train_discriminator(writer, n_epi, agent_s, agent_a, agent_next_s, agent_prob, agent_done_mask, expert_s, expert_a, expert_next_s, expert_prob, expert_done_mask)
+        discriminator.train_discriminator(self.writer, n_epi, agent_s, agent_a, agent_next_s, agent_prob, agent_done_mask, expert_s, expert_a, expert_next_s, expert_prob, expert_done_mask)
         
-    def train_ppo(self, writer,n_epi,states, actions, rewards, next_states, done_masks, old_log_probs):
+    def train_ppo(self, n_epi, states, actions, rewards, next_states, done_masks, old_log_probs):
         old_values, advantages = self.get_gae(states, rewards, next_states, done_masks)
         returns = advantages + old_values
         advantages = (advantages - advantages.mean())/(advantages.std()+1e-3)
@@ -123,9 +122,9 @@ class PPO(nn.Module):
                 nn.utils.clip_grad_norm_(self.critic.parameters(), self.args.max_grad_norm)
                 self.critic_optimizer.step()
                 
-                if writer != None:
-                    writer.add_scalar("loss/actor_loss", actor_loss.item(), n_epi)
-                    writer.add_scalar("loss/critic_loss", critic_loss.item(), n_epi)
+                if self.writer != None:
+                    self.writer.add_scalar("loss/actor_loss", actor_loss.item(), n_epi)
+                    self.writer.add_scalar("loss/critic_loss", critic_loss.item(), n_epi)
 
     def get_gae(self, states, rewards, next_states, done_masks):
         values = self.v(states).detach()

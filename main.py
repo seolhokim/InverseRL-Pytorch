@@ -122,7 +122,7 @@ for n_epi in range(args.epoch):
         else:
             state = next_state
             state_ = next_state_
-    agent.train(writer, discriminator, discriminator_args.batch_size, state_rms, n_epi, airl = discriminator_args.is_airl)
+    agent.train(discriminator, discriminator_args.batch_size, state_rms, n_epi, airl = discriminator_args.is_airl)
     state_rms.update(np.vstack(state_lst))
     state_lst = []
     if n_epi%args.print_interval==0 and n_epi!=0:
