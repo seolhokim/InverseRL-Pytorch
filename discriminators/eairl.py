@@ -6,26 +6,23 @@ import torch.nn as nn
 
     
 class EAIRL(Discriminator):
-    def __init__(self,writer, device, state_dim, action_dim, hidden_dim,discriminator_lr,beta = 1, gamma = 0.99,i_lambda = 0.001, update_cycle = 5, state_only = False, layer_num = 3, activation_function = torch.tanh, last_activation = None,trainable_std = False):
+    def __init__(self,writer, device, state_dim, action_dim, args):
         super(EAIRL, self).__init__()
         self.writer = writer
         self.device = device
-        self.q_phi = Q_phi(layer_num, state_dim, action_dim, hidden_dim, activation_function,last_activation,trainable_std)
-        self.empowerment = Empowerment(layer_num, state_dim, action_dim, hidden_dim, activation_function ,last_activation)
-        self.empowerment_t = Empowerment(layer_num, state_dim, action_dim, hidden_dim, activation_function ,last_activation)
-        self.reward = Reward(layer_num, state_dim, action_dim, hidden_dim, activation_function ,last_activation)
+        self.args = args
+        self.q_phi = Q_phi(self.args.layer_num, state_dim, action_dim, self.args.hidden_dim, self.args.activation_function,self.args.last_activation,self.args.trainable_std)
+        self.empowerment = Empowerment(self.args.layer_num, state_dim, action_dim, self.args.hidden_dim, self.args.activation_function ,self.args.last_activation)
+        self.empowerment_t = Empowerment(self.args.layer_num, state_dim, action_dim, self.args.hidden_dim, self.args.activation_function ,self.args.last_activation)
+        self.reward = Reward(self.args.layer_num, state_dim, action_dim, self.args.hidden_dim, self.args.activation_function , self.args.last_activation)
         self.empowerment_t.load_state_dict(self.empowerment.state_dict())
         self.criterion = nn.BCELoss()
-        self.q_phi_optimizer = torch.optim.Adam(self.q_phi.parameters(), lr=discriminator_lr)
-        self.empowerment_optimizer = torch.optim.Adam(self.empowerment.parameters(), lr=discriminator_lr)
-        self.reward_optimizer = torch.optim.Adam(self.reward.parameters(), lr=discriminator_lr)
+        self.q_phi_optimizer = torch.optim.Adam(self.q_phi.parameters(), lr=self.args.lr)
+        self.empowerment_optimizer = torch.optim.Adam(self.empowerment.parameters(), lr=self.args.lr)
+        self.reward_optimizer = torch.optim.Adam(self.reward.parameters(), lr=self.args.lr)
         self.network_init()
         self.mse = nn.MSELoss()
         
-        self.update_cycle = update_cycle
-        self.beta = beta
-        self.gamma = gamma
-        self.i_lambda = i_lambda
         self.iter = 0
     def get_d(self,state,next_state,action,done_mask,prob):
         exp_f = torch.exp(self.get_f(state,next_state,action,done_mask))
@@ -33,11 +30,11 @@ class EAIRL(Discriminator):
     
     def get_f(self,state,next_state,action,done_mask):
         return self.reward(state,action) +\
-    done_mask * (self.gamma * self.empowerment_t(next_state).detach() - self.empowerment(state).detach())
+    done_mask * (self.args.gamma * self.empowerment_t(next_state).detach() - self.empowerment(state).detach())
 
     def get_reward(self,log_prob,state,action,next_state,done):
         done_mask = 1 - done.float()
-        return (self.get_f(state,next_state,action,done_mask) - log_prob - self.i_lambda * self.get_loss_i(state,next_state,action,log_prob.exp())).detach() 
+        return (self.get_f(state,next_state,action,done_mask) - log_prob - self.args.i_lambda * self.get_loss_i(state,next_state,action,log_prob.exp())).detach() 
     def get_loss_q(self,state,next_state,action):
         mu,sigma = self.q_phi(state,next_state)
         loss = self.mse(mu,action)
@@ -47,7 +44,7 @@ class EAIRL(Discriminator):
         mu,sigma = self.q_phi(state,next_state)
         dist = torch.distributions.Normal(mu,sigma)
         q_log_prob = dist.log_prob(action).sum(-1,keepdim=True).detach()
-        approx_1 = self.beta * q_log_prob
+        approx_1 = self.args.beta * q_log_prob
         approx_2 = torch.log(pi_prob) + self.empowerment(state)
         loss = self.mse(approx_1,approx_2)
         return loss
@@ -83,7 +80,7 @@ class EAIRL(Discriminator):
             self.writer.add_scalar("loss/discriminator_loss_q", loss_q.item(), n_epi)
             self.writer.add_scalar("loss/discriminator_loss_i", loss_i.item(), n_epi)
             self.writer.add_scalar("loss/discriminator_reward_loss", reward_loss.item(), n_epi)
-        if self.iter % self.update_cycle == 0:
+        if self.iter % self.args.update_cycle == 0:
             self.empowerment_t.load_state_dict(self.empowerment.state_dict())
         self.iter += 1
         

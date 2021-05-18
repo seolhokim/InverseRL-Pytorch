@@ -21,8 +21,8 @@ os.makedirs('./model_weights', exist_ok=True)
 
 env = gym.make("Hopper-v2")
 
-action_space = env.action_space.shape[0]
-state_space = env.observation_space.shape[0]
+action_dim = env.action_space.shape[0]
+state_dim = env.observation_space.shape[0]
 
 parser = ArgumentParser('parameters')
 
@@ -58,31 +58,20 @@ else:
 
 
 if args.discriminator == 'airl':
-    discriminator = AIRL(writer, device, state_space,action_space,int(parser[args.discriminator]['hidden_dim']),
-                         float(parser[args.discriminator]['lr']),float(parser[args.discriminator]['gamma']),
-                         bool(strtobool(parser[args.discriminator]['state_only'])), int(parser[args.discriminator]['layer_num']),
-                         eval(parser[args.discriminator]['activation_function']), eval(parser[args.discriminator]['last_activation']))
+    discriminator = AIRL(writer, device, state_dim, action_dim, discriminator_args)
 elif args.discriminator == 'vairl':
-    discriminator = VAIRL(writer, device, state_space,action_space,int(parser[args.discriminator]['hidden_dim']),int(parser[args.discriminator]['z_dim']),float(parser[args.discriminator]['lr']),float(parser[args.discriminator]['gamma']),bool(strtobool(parser[args.discriminator]['state_only'])),float(parser[args.discriminator]['dual_stepsize']),float(parser[args.discriminator]['mutual_info_constraint']))
+    discriminator = VAIRL(writer, device, state_dim, action_dim, discriminator_args)
 elif args.discriminator == 'gail':
-    discriminator = GAIL(writer,device,int(parser[args.discriminator]['layer_num']),
-                         state_space, action_space, int(parser[args.discriminator]['hidden_dim']),eval(parser[args.discriminator]['activation_function']),
-                         eval(parser[args.discriminator]['last_activation']),float(parser[args.discriminator]['lr']))
+    discriminator = GAIL(writer, device, state_dim, action_dim, discriminator_args)
 elif args.discriminator == 'vail':
-    discriminator = VAIL(writer,device,state_space, action_space, int(parser[args.discriminator]['hidden_dim']),int(parser[args.discriminator]['z_dim']),float(parser[args.discriminator]['lr']),float(parser[args.discriminator]['dual_stepsize']),float(parser[args.discriminator]['mutual_info_constraint']),int(parser[args.discriminator]['epoch']))
+    discriminator = VAIL(writer,device,state_dim, action_dim, discriminator_args)
 elif args.discriminator == 'eairl':
-    discriminator = EAIRL(writer, device, state_space, action_space, int(parser[args.discriminator]['hidden_dim']), \
-                         float(parser[args.discriminator]['lr']),float(parser[args.discriminator]['beta']),\
-                         float(parser[args.discriminator]['gamma']),float(parser[args.discriminator]['i_lambda']),\
-                          int(parser[args.discriminator]['update_cycle']),\
-                          bool(strtobool(parser[args.discriminator]['state_only'])),\
-                         int(parser[args.discriminator]['layer_num']), eval(parser[args.discriminator]['activation_function']), \
-                         eval(parser[args.discriminator]['last_activation']), bool(strtobool(parser[args.agent]['trainable_std'])))
+    discriminator = EAIRL(writer, device, state_dim, action_dim, discriminator_args)
 else:
     raise NotImplementedError
     
 if args.agent == 'ppo':
-    agent = PPO(writer, device, state_space, action_space, agent_args, demonstrations_location_args)
+    agent = PPO(writer, device, state_dim, action_dim, agent_args, demonstrations_location_args)
 else:
     raise NotImplementedError
 
@@ -90,7 +79,7 @@ if device == 'cuda':
     agent = agent.cuda()
     discriminator = discriminator.cuda()
     
-state_rms = RunningMeanStd(state_space)
+state_rms = RunningMeanStd(state_dim)
 
 score_lst = []
 state_lst = []

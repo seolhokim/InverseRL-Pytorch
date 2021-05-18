@@ -4,23 +4,21 @@ import torch
 import torch.nn as nn
 
 class VAIL(Discriminator):
-    def __init__(self, writer, device, state_dim, action_dim, hidden_dim,z_dim,discriminator_lr,dual_stepsize=1e-5,mutual_info_constraint=0.5,epoch = 3):
+    def __init__(self, writer, device, state_dim, action_dim, args):
         super(VAIL, self).__init__()
         self.writer = writer
         self.device = device
-        self.epoch = epoch
-        self.vdb = VDB(state_dim, action_dim, hidden_dim,z_dim)
-        self.fc3 = nn.Linear(z_dim,1)
+        self.args = args
+        self.beta = self.args.beta
+        
+        self.vdb = VDB(state_dim, action_dim, args.hidden_dim, args.z_dim)
+        self.fc3 = nn.Linear(args.z_dim,1)
         
         self.network_init()
         
-        self.dual_stepsize = dual_stepsize
-        self.mutual_info_constraint = mutual_info_constraint
-        self.beta = 0
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=self.args.lr)
         self.criterion = nn.BCELoss()
         
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=discriminator_lr)
-
     def forward(self, x,get_dist = False):
         z,mu,std = self.vdb.get_z(x)
         x = torch.sigmoid(self.fc3(torch.relu(z)))
@@ -39,7 +37,7 @@ class VAIL(Discriminator):
         return torch.mean(-logvar+(torch.square(mu)+torch.square(torch.exp(logvar))-1.)/2.)
     
     def train_discriminator(self,writer,n_epi,agent_s,agent_a,expert_s,expert_a):
-        for i in range(self.epoch):
+        for i in range(self.args.epoch):
             expert_cat = torch.cat((torch.tensor(expert_s),torch.tensor(expert_a)),-1)
             expert_preds,expert_mu,expert_std = self.forward(expert_cat.float().to(self.device),get_dist = True)
             expert_loss = self.criterion(expert_preds,torch.ones(expert_preds.shape[0],1).to(self.device))
@@ -52,9 +50,9 @@ class VAIL(Discriminator):
             agent_bottleneck_loss = self.get_latent_kl_div(agent_mu,agent_std)
             
             bottleneck_loss = 0.5 * (expert_bottleneck_loss + agent_bottleneck_loss)
-            bottleneck_loss = bottleneck_loss -  self.mutual_info_constraint
+            bottleneck_loss = bottleneck_loss -  self.args.mutual_info_constraint
             
-            self.beta = max(0,self.beta + self.dual_stepsize * bottleneck_loss.detach())
+            self.beta = max(0,self.beta + self.args.dual_stepsize * bottleneck_loss.detach())
             loss = expert_loss + agent_loss + (bottleneck_loss) * self.beta
 
 

@@ -4,13 +4,13 @@ import torch
 import torch.nn as nn
 
 class GAIL(Discriminator):
-    def __init__(self, writer, device, layer_num, state_dim, action_dim, hidden_dim, activation_function, last_activation, discriminator_lr):
+    def __init__(self, writer, device, state_dim, action_dim, args):
         super(GAIL, self).__init__()
         self.writer = writer
         self.device = device
-        self.network = Network(layer_num, state_dim+action_dim, 1, hidden_dim, activation_function,last_activation)
+        self.network = Network(args.layer_num, state_dim+action_dim, 1, args.hidden_dim, args.activation_function,args.last_activation)
         self.criterion = nn.BCELoss()
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=discriminator_lr)
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=args.lr)
 
     def forward(self, x):
         prob = self.network.forward(x)

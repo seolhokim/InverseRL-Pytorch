@@ -4,18 +4,19 @@ import torch
 import torch.nn as nn
     
 class AIRL(Discriminator):
-    def __init__(self, writer, device, state_dim, action_dim, hidden_dim,discriminator_lr,gamma,state_only,layer_num = 3, activation_function = torch.tanh, last_activation = None):
+    def __init__(self, writer, device, state_dim, action_dim, args):
         super(AIRL, self).__init__()
         self.writer = writer
         self.device = device
-        self.gamma = gamma
-        self.g = G(state_only, layer_num, state_dim, action_dim, hidden_dim, activation_function, last_activation)
-        self.h = H(layer_num, state_dim, action_dim, hidden_dim, activation_function, last_activation)
+        self.args = args
+        
+        self.g = G(self.args.state_only, self.args.layer_num, state_dim, action_dim, self.args.hidden_dim, self.args.activation_function, self.args.last_activation)
+        self.h = H(self.args.layer_num, state_dim, action_dim, self.args.hidden_dim, self.args.activation_function, self.args.last_activation)
         self.criterion = nn.BCELoss()
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=discriminator_lr)
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=self.args.lr)
         self.network_init()
     def get_f(self,state,action,next_state,done_mask):
-        return self.g(state,action) + done_mask.float() * (self.gamma * self.h(next_state) - self.h(state))
+        return self.g(state,action) + done_mask.float() * (self.args.gamma * self.h(next_state) - self.h(state))
     def get_d(self,prob,state,action,next_state,done_mask):
         exp_f = torch.exp(self.get_f(state,action,next_state,done_mask))
         return (exp_f/(exp_f + prob))
