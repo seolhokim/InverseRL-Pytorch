@@ -2,6 +2,7 @@
 
 ## Agent Algorithm
 * PPO
+* SAC
 
 ## Discriminator Algorithm
 * GAIL(Generative Adversarial Imitation Learning)
