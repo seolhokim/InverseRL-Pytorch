@@ -11,7 +11,7 @@ class DiscriminatorBase(nn.Module,metaclass=ABCMeta):
     def get_reward(self):
         pass
     @abstractmethod
-    def train_discriminator(self):
+    def train_network(self):
         pass
 class Discriminator(DiscriminatorBase):
     def __init__(self):

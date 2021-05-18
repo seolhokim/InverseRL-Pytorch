@@ -52,7 +52,7 @@ class EAIRL(Discriminator):
     def forward(self,prob,state,action,next_state,done_mask):
         return self.get_d(state,next_state,action,done_mask,prob)
         
-    def train_discriminator(self,writer,n_epi,agent_s,agent_a,agent_next_s,\
+    def train_network(self,writer,n_epi,agent_s,agent_a,agent_next_s,\
                             agent_prob,agent_done_mask,expert_s,expert_a,expert_next_s,expert_prob,expert_done_mask):
         
         loss_q = self.get_loss_q(agent_s,agent_next_s,agent_a)

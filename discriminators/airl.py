@@ -27,7 +27,7 @@ class AIRL(Discriminator):
         d = (self.get_d(prob,state,action,next_state,done_mask))
         return d
         
-    def train_discriminator(self,writer,n_epi,agent_s,agent_a,agent_next_s,agent_prob,agent_done_mask,expert_s,expert_a,expert_next_s,expert_prob,expert_done_mask):
+    def train_network(self,writer,n_epi,agent_s,agent_a,agent_next_s,agent_prob,agent_done_mask,expert_s,expert_a,expert_next_s,expert_prob,expert_done_mask):
         
         expert_preds = self.forward(expert_prob,expert_s,expert_a,expert_next_s,expert_done_mask)
         expert_loss = self.criterion(expert_preds,torch.ones(expert_preds.shape[0],1).to(self.device)) 

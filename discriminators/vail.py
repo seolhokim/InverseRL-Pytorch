@@ -36,7 +36,7 @@ class VAIL(Discriminator):
     def get_latent_kl_div(self,mu,logvar):
         return torch.mean(-logvar+(torch.square(mu)+torch.square(torch.exp(logvar))-1.)/2.)
     
-    def train_discriminator(self,writer,n_epi,agent_s,agent_a,expert_s,expert_a):
+    def train_network(self,writer,n_epi,agent_s,agent_a,expert_s,expert_a):
         for i in range(self.args.epoch):
             expert_cat = torch.cat((torch.tensor(expert_s),torch.tensor(expert_a)),-1)
             expert_preds,expert_mu,expert_std = self.forward(expert_cat.float().to(self.device),get_dist = True)

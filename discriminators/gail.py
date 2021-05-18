@@ -19,7 +19,7 @@ class GAIL(Discriminator):
         x = torch.cat((state,action),-1)
         x = self.network.forward(x)
         return -torch.log(x).detach()
-    def train_discriminator(self,writer,n_epi,agent_s,agent_a,expert_s,expert_a):
+    def train_network(self,writer,n_epi,agent_s,agent_a,expert_s,expert_a):
         expert_cat = torch.cat((torch.tensor(expert_s),torch.tensor(expert_a)),-1)
         expert_preds = self.forward(expert_cat.float().to(self.device))
         
