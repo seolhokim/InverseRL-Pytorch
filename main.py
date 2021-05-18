@@ -4,7 +4,7 @@ from discriminators.vail     import VAIL
 from discriminators.airl     import AIRL
 from discriminators.vairl    import VAIRL
 from discriminators.eairl    import EAIRL
-from utils.utils             import RunningMeanStd
+from utils.utils             import RunningMeanStd, Dict
 
 import os
 import gym
@@ -40,6 +40,10 @@ args = parser.parse_args()
 parser = ConfigParser()
 parser.read('config.ini')
 
+demonstrations_location_args = Dict(parser,'demonstrations_location',True)
+agent_args = Dict(parser,args.agent)
+discriminator_args = Dict(parser,args.discriminator)
+
 expert_state_location = parser['demonstrations_location']['expert_state_location']
 expert_action_location = parser['demonstrations_location']['expert_action_location']
 expert_next_state_location = parser['demonstrations_location']['expert_next_state_location']
@@ -54,20 +58,20 @@ else:
 
 
 if args.discriminator == 'airl':
-    discriminator = AIRL(writer, device, state_space,action_space,int(parser[args.discriminator]['hidden_space']),
+    discriminator = AIRL(writer, device, state_space,action_space,int(parser[args.discriminator]['hidden_dim']),
                          float(parser[args.discriminator]['lr']),float(parser[args.discriminator]['gamma']),
                          bool(strtobool(parser[args.discriminator]['state_only'])), int(parser[args.discriminator]['layer_num']),
                          eval(parser[args.discriminator]['activation_function']), eval(parser[args.discriminator]['last_activation']))
 elif args.discriminator == 'vairl':
-    discriminator = VAIRL(writer, device, state_space,action_space,int(parser[args.discriminator]['hidden_space']),int(parser[args.discriminator]['z_dim']),float(parser[args.discriminator]['lr']),float(parser[args.discriminator]['gamma']),bool(strtobool(parser[args.discriminator]['state_only'])),float(parser[args.discriminator]['dual_stepsize']),float(parser[args.discriminator]['mutual_info_constraint']))
+    discriminator = VAIRL(writer, device, state_space,action_space,int(parser[args.discriminator]['hidden_dim']),int(parser[args.discriminator]['z_dim']),float(parser[args.discriminator]['lr']),float(parser[args.discriminator]['gamma']),bool(strtobool(parser[args.discriminator]['state_only'])),float(parser[args.discriminator]['dual_stepsize']),float(parser[args.discriminator]['mutual_info_constraint']))
 elif args.discriminator == 'gail':
     discriminator = GAIL(writer,device,int(parser[args.discriminator]['layer_num']),
-                         state_space, action_space, int(parser[args.discriminator]['hidden_space']),eval(parser[args.discriminator]['activation_function']),
+                         state_space, action_space, int(parser[args.discriminator]['hidden_dim']),eval(parser[args.discriminator]['activation_function']),
                          eval(parser[args.discriminator]['last_activation']),float(parser[args.discriminator]['lr']))
 elif args.discriminator == 'vail':
-    discriminator = VAIL(writer,device,state_space, action_space, int(parser[args.discriminator]['hidden_space']),int(parser[args.discriminator]['z_dim']),float(parser[args.discriminator]['lr']),float(parser[args.discriminator]['dual_stepsize']),float(parser[args.discriminator]['mutual_info_constraint']),int(parser[args.discriminator]['epoch']))
+    discriminator = VAIL(writer,device,state_space, action_space, int(parser[args.discriminator]['hidden_dim']),int(parser[args.discriminator]['z_dim']),float(parser[args.discriminator]['lr']),float(parser[args.discriminator]['dual_stepsize']),float(parser[args.discriminator]['mutual_info_constraint']),int(parser[args.discriminator]['epoch']))
 elif args.discriminator == 'eairl':
-    discriminator = EAIRL(writer, device, state_space, action_space, int(parser[args.discriminator]['hidden_space']), \
+    discriminator = EAIRL(writer, device, state_space, action_space, int(parser[args.discriminator]['hidden_dim']), \
                          float(parser[args.discriminator]['lr']),float(parser[args.discriminator]['beta']),\
                          float(parser[args.discriminator]['gamma']),float(parser[args.discriminator]['i_lambda']),\
                           int(parser[args.discriminator]['update_cycle']),\
@@ -78,33 +82,25 @@ else:
     raise NotImplementedError
     
 if args.agent == 'ppo':
-    agent = PPO(writer,device,int(parser[args.agent]['agent_layer_num']),state_space,action_space,int(parser[args.agent]['hidden_space']),eval(parser[args.agent]['agent_activation_function']),\
-                expert_state_location,\
-                expert_action_location,\
-                expert_next_state_location,\
-                expert_done_location,\
-               float(parser[args.agent]['entropy_coef']),float(parser[args.agent]['critic_coef']),float(parser[args.agent]['lr']),float(parser[args.agent]['gamma']),\
-                float(parser[args.agent]['lmbda']),float(parser[args.agent]['eps_clip']),int(parser[args.agent]['K_epoch']),int(parser[args.agent]['batch_size']),\
-                bool(strtobool(parser[args.agent]['trainable_std']))\
-               )#
+    agent = PPO(writer, device, state_space, action_space, agent_args, demonstrations_location_args)
 else:
     raise NotImplementedError
+
 if device == 'cuda':
     agent = agent.cuda()
     discriminator = discriminator.cuda()
     
 state_rms = RunningMeanStd(state_space)
 
-
-
 score_lst = []
 state_lst = []
 
 score = 0.0
+
 s_ = (env.reset())
 s = np.clip((s_ - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5)
 for n_epi in range(args.epoch):
-    for t in range(int(parser[args.agent]['T_horizon'])):
+    for t in range(agent_args.traj_length):
         if args.render:    
             env.render()
         state_lst.append(s_)
