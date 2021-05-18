@@ -16,7 +16,7 @@ class Agent(nn.Module):
         if self.args.on_policy == True :
             self.data = ReplayBuffer(action_prob_exist = True, max_size = self.args.traj_length, state_dim = state_dim, num_action = action_dim)
         else :
-            self.data = ReplayBuffer(action_prob_exist = False, max_size = self.args.memory_size, state_dim = state_dim, num_action = action_dim)
+            self.data = ReplayBuffer(action_prob_exist = False, max_size = int(self.args.memory_size), state_dim = state_dim, num_action = action_dim)
         file_size = 120
         
         f = open(demonstrations_location_args.expert_state_location,'rb')
@@ -32,10 +32,7 @@ class Agent(nn.Module):
         self.brain = algorithm
         
     def get_action(self,x):
-        mu,std = self.brain.get_dist(x)
-        dist = torch.distributions.Normal(mu,std)
-        action = dist.sample()
-        log_prob = dist.log_prob(action).sum(-1,keepdim = True)
+        action, log_prob = self.brain.get_action(x)
         return action, log_prob
     
     def put_data(self,transition):

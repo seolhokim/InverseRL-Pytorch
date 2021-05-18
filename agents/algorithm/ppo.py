@@ -21,8 +21,16 @@ class PPO(nn.Module):
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=args.actor_lr)
         self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=args.critic_lr)
         self.device = device
+        
     def get_dist(self,x):
         return self.actor(x)
+    
+    def get_action(self,x):
+        mu,std = self.get_dist(x)
+        dist = torch.distributions.Normal(mu,std)
+        action = dist.sample()
+        log_prob = dist.log_prob(action).sum(-1,keepdim = True)
+        return action, log_prob
     
     def v(self,x):
         return self.critic(x)

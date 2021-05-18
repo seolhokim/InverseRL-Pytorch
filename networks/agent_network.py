@@ -23,5 +23,6 @@ class Critic(Network):
     def __init__(self, layer_num, input_dim, output_dim, hidden_dim, activation_function, last_activation = None):
         super(Critic, self).__init__(layer_num, input_dim, output_dim, hidden_dim, activation_function ,last_activation)
         
-    def forward(self, x):
+    def forward(self, *x):
+        x = torch.cat(x,-1)
         return self._forward(x)
