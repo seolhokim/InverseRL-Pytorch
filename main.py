@@ -1,4 +1,6 @@
-from agents.ppo              import PPO
+from agents.algorithm.ppo    import PPO
+from agents.agent            import Agent
+
 from discriminators.gail     import GAIL
 from discriminators.vail     import VAIL
 from discriminators.airl     import AIRL
@@ -6,16 +8,14 @@ from discriminators.vairl    import VAIRL
 from discriminators.eairl    import EAIRL
 from utils.utils             import RunningMeanStd, Dict, make_transition
 
-import os
-import gym
-import numpy as np
-from distutils.util import strtobool 
-
 from configparser            import ConfigParser
 from argparse                import ArgumentParser
 
-import torch
+import os
+import gym
+import numpy as np
 
+import torch
 
 os.makedirs('./model_weights', exist_ok=True)
 
@@ -65,10 +65,10 @@ else:
     raise NotImplementedError
     
 if args.agent == 'ppo':
-    agent = PPO(writer, device, state_dim, action_dim, agent_args, demonstrations_location_args)
+    algorithm = PPO(device, state_dim, action_dim, agent_args)
 else:
     raise NotImplementedError
-
+agent = Agent(algorithm, writer, device, state_dim, action_dim, agent_args, demonstrations_location_args)
 if device == 'cuda':
     agent = agent.cuda()
     discriminator = discriminator.cuda()
