@@ -2,6 +2,7 @@
 
 ## Agent Algorithm
 * PPO
+* SAC
 
 ## Discriminator Algorithm
 * GAIL(Generative Adversarial Imitation Learning)
@@ -13,7 +14,6 @@
 * EAIRL(Empowerment-regularized Adversarial Inverse Reinforcement Learning)
   * Two value functions can be merged into one.
 ## TODO
-* add SAC
 * add SQIL
 * add more environments(ant and disabled ant)
 * build setup file
