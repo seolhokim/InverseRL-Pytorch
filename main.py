@@ -66,6 +66,8 @@ else:
     
 if args.agent == 'ppo':
     algorithm = PPO(device, state_dim, action_dim, agent_args)
+elif args.agent == 'sac':
+    algorithm = SAC(device, state_dim, action_dim, agent_args)
 else:
     raise NotImplementedError
 agent = Agent(algorithm, writer, device, state_dim, action_dim, agent_args, demonstrations_location_args)
