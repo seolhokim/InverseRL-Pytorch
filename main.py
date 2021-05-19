@@ -91,7 +91,7 @@ if agent_args.on_policy == True:
             state_lst.append(state_)
             action, log_prob = agent.get_action(torch.from_numpy(state).float().to(device))
 
-            next_state_, reward, done, info = env.step(action.unsqueeze(0).cpu().numpy())
+            next_state_, r, done, info = env.step(action.unsqueeze(0).cpu().numpy())
             next_state = np.clip((next_state_ - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5)
             if discriminator_args.is_airl:
                 reward = discriminator.get_reward(\
@@ -110,7 +110,7 @@ if agent_args.on_policy == True:
                                          log_prob.detach().cpu().numpy()\
                                         )
             agent.put_data(transition) 
-            score += reward
+            score += r
             if done:
                 state_ = (env.reset())
                 state = np.clip((state_ - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5)
@@ -140,7 +140,16 @@ else :
                 env.render()
             action, _ = agent.get_action(torch.from_numpy(state).float().to(device))
             action = action.cpu().detach().numpy()
-            next_state, reward, done, info = env.step(action)
+            next_state, r, done, info = env.step(action)
+            if discriminator_args.is_airl:
+                reward = discriminator.get_reward(\
+                            log_prob,
+                            torch.tensor(state).unsqueeze(0).float().to(device),action.unsqueeze(0),\
+                            torch.tensor(next_state).unsqueeze(0).float().to(device),\
+                                                  torch.tensor(done).unsqueeze(0)\
+                                                 ).item()
+            else:
+                reward = discriminator.get_reward(torch.tensor(state).unsqueeze(0).float().to(device),action.unsqueeze(0)).item()
 
             transition = make_transition(state,\
                                          action,\
@@ -152,7 +161,7 @@ else :
 
             state = next_state
 
-            score += reward
+            score += r
             if agent.data.data_idx > agent_args.learn_start_size: 
                 agent.train(discriminator, discriminator_args.batch_size, state_rms, n_epi,\
                             discriminator_args.is_airl, agent_args.batch_size)

@@ -72,11 +72,3 @@ class Agent(nn.Module):
             self.brain.train_network(self.writer, n_epi, states, actions, rewards, next_states, done_masks, old_log_probs)
         else : 
             self.brain.train_network(self.writer, n_epi, states, actions, rewards, next_states, done_masks)
-    '''
-    def train_discriminator(self, discriminator, *value):
-        discriminator.train_discriminator(self.writer, *value)
-        
-    def train_brain(self, *value):
-        self.brain.train_network(self.writer, *value)
-    '''    
-    
