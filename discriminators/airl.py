@@ -14,32 +14,31 @@ class AIRL(Discriminator):
         self.h = H(self.args.layer_num, state_dim, action_dim, self.args.hidden_dim, self.args.activation_function, self.args.last_activation)
         self.criterion = nn.BCELoss()
         self.optimizer = torch.optim.Adam(self.parameters(), lr=self.args.lr)
-        self.network_init()
     def get_f(self,state,action,next_state,done_mask):
         return self.g(state,action) + done_mask.float() * (self.args.gamma * self.h(next_state) - self.h(state))
-    def get_d(self,prob,state,action,next_state,done_mask):
+    def get_d(self,log_prob,state,action,next_state,done_mask):
         exp_f = torch.exp(self.get_f(state,action,next_state,done_mask))
-        return (exp_f/(exp_f + prob))
+        return (exp_f/(exp_f + torch.exp(log_prob)))
     def get_reward(self,log_prob,state,action,next_state,done):
         done_mask = 1 - done.float()
-        return (self.get_f(state,action,next_state,done_mask) - log_prob).detach()
-    def forward(self,prob,state,action,next_state,done_mask):
-        d = (self.get_d(prob,state,action,next_state,done_mask))
+        #return (self.get_f(state,action,next_state,done_mask) - log_prob).detach()
+        d = (self.get_d(log_prob,state,action,next_state,done_mask))
+        return (torch.log(d + 1e-3) - torch.log((1-d)+1e-3)).detach()
+    def forward(self,log_prob,state,action,next_state,done_mask):
+        d = (self.get_d(log_prob,state,action,next_state,done_mask))
         return d
         
-    def train_network(self,writer,n_epi,agent_s,agent_a,agent_next_s,agent_prob,agent_done_mask,expert_s,expert_a,expert_next_s,expert_prob,expert_done_mask):
+    def train_network(self,writer,n_epi,agent_s,agent_a,agent_next_s,agent_log_prob,agent_done_mask,expert_s,expert_a,expert_next_s,expert_log_prob,expert_done_mask):
         
-        expert_preds = self.forward(expert_prob,expert_s,expert_a,expert_next_s,expert_done_mask)
+        expert_preds = self.forward(expert_log_prob,expert_s,expert_a,expert_next_s,expert_done_mask)
         expert_loss = self.criterion(expert_preds,torch.ones(expert_preds.shape[0],1).to(self.device)) 
         
-        agent_preds = self.forward(agent_prob,agent_s,agent_a,agent_next_s,agent_done_mask)
+        agent_preds = self.forward(agent_log_prob,agent_s,agent_a,agent_next_s,agent_done_mask)
         agent_loss = self.criterion(agent_preds,torch.zeros(agent_preds.shape[0],1).to(self.device))
         
         loss = expert_loss+agent_loss
-        expert_acc = ((expert_preds < 0.5).float()).mean()
-        learner_acc = ((agent_preds > 0.5).float()).mean()
-        #print("expert_acc : ",expert_acc)
-        #print("learner_acc : ",learner_acc)
+        expert_acc = ((expert_preds > 0.5).float()).mean()
+        learner_acc = ((agent_preds < 0.5).float()).mean()
         if self.writer != None:
             self.writer.add_scalar("loss/discriminator_loss", loss.item(), n_epi)
         #if (expert_acc > 0.8) and (learner_acc > 0.8):

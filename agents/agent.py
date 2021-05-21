@@ -59,15 +59,19 @@ class Agent(nn.Module):
             if self.args.on_policy :
                 expert_s = np.clip((expert_s - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5).float()
                 expert_next_s = np.clip((expert_next_s - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5).float()
-            
-            _, agent_log_prob = self.get_action(agent_s.float().to(self.device))
-            agent_prob = agent_log_prob.exp().detach()
-            
-            _, expert_log_prob = self.get_action(expert_s.float().to(self.device))
-            expert_prob = expert_log_prob.exp().detach()
 
+            mu,sigma = self.brain.get_dist(agent_s.float().to(self.device))
+            dist = torch.distributions.Normal(mu,sigma)
+            agent_log_prob = dist.log_prob(agent_a).sum(-1,keepdim=True).detach()
+            
+            mu,sigma = self.brain.get_dist(expert_s.float().to(self.device))
+            dist = torch.distributions.Normal(mu,sigma)
+            expert_log_prob = dist.log_prob(expert_a).sum(-1,keepdim=True).detach()
+            
+
+            
             discriminator.train_network(self.writer, n_epi, agent_s, agent_a, agent_next_s,\
-                                          agent_prob, agent_done_mask, expert_s, expert_a, expert_next_s, expert_prob, expert_done_mask)
+                                          agent_log_prob, agent_done_mask, expert_s, expert_a, expert_next_s, expert_log_prob, expert_done_mask)
         if self.args.on_policy :
             self.brain.train_network(self.writer, n_epi, states, actions, rewards, next_states, done_masks, old_log_probs)
         else : 
