@@ -34,7 +34,7 @@ class EAIRL(Discriminator):
 
     def get_reward(self,log_prob,state,action,next_state,done):
         done_mask = 1 - done.float()
-        return (self.get_f(state,next_state,action,done_mask) - log_prob - self.args.i_lambda * self.get_loss_i(state,next_state,action,log_prob.exp())).detach() 
+        return (self.get_f(state,next_state,action,done_mask) - log_prob - self.args.i_lambda * self.get_loss_i(state,next_state,action,log_prob)).detach() 
     def get_loss_q(self,state,next_state,action):
         mu,sigma = self.q_phi(state,next_state)
         loss = self.mse(mu,action)
