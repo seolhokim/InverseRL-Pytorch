@@ -78,8 +78,9 @@ if device == 'cuda':
 state_rms = RunningMeanStd(state_dim)
 
 score_lst = []
-
 score = 0.0
+discriminator_score = 0.0
+
 if agent_args.on_policy == True:
     state_lst = []
     state_ = (env.reset())
@@ -89,8 +90,9 @@ if agent_args.on_policy == True:
             if args.render:    
                 env.render()
             state_lst.append(state_)
+            
             action, log_prob = agent.get_action(torch.from_numpy(state).float().to(device))
-
+            
             next_state_, r, done, info = env.step(action.unsqueeze(0).cpu().numpy())
             next_state = np.clip((next_state_ - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5)
             if discriminator_args.is_airl:
@@ -111,13 +113,16 @@ if agent_args.on_policy == True:
                                         )
             agent.put_data(transition) 
             score += r
+            discriminator_score += reward
             if done:
                 state_ = (env.reset())
                 state = np.clip((state_ - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5)
                 score_lst.append(score)
                 if writer != None:
-                    writer.add_scalar("score", score, n_epi)
+                    writer.add_scalar("score/real", score, n_epi)
+                    writer.add_scalar("score/discriminator", discriminator_score, n_epi)
                 score = 0
+                discriminator_score = 0
             else:
                 state = next_state
                 state_ = next_state_
@@ -129,10 +134,11 @@ if agent_args.on_policy == True:
             score_lst = []
         if (n_epi % args.save_interval == 0 )& (n_epi != 0):
             torch.save(agent.state_dict(), './model_weights/model_'+str(n_epi))
-            
-else :
+
+else : #off-policy
     for n_epi in range(args.epochs):
         score = 0.0
+        discriminator_score = 0.0
         state = env.reset()
         done = False
         while not done:
@@ -162,12 +168,15 @@ else :
             state = next_state
 
             score += r
+            discriminator_score += reward
+            
             if agent.data.data_idx > agent_args.learn_start_size: 
                 agent.train(discriminator, discriminator_args.batch_size, state_rms, n_epi,\
                             discriminator_args.is_airl, agent_args.batch_size)
         score_lst.append(score)
         if args.tensorboard:
             writer.add_scalar("score/score", score, n_epi)
+            writer.add_scalar("score/discriminator", discriminator_score, n_epi)
         if n_epi%args.print_interval==0 and n_epi!=0:
             print("# of episode :{}, avg score : {:.1f}".format(n_epi, sum(score_lst)/len(score_lst)))
             score_lst = []
