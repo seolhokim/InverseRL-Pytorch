@@ -40,12 +40,12 @@ class EAIRL(Discriminator):
         loss = self.mse(mu,action)
         return loss
     
-    def get_loss_i(self,state,next_state,action,pi_prob):
+    def get_loss_i(self,state,next_state,action,log_prob):
         mu,sigma = self.q_phi(state,next_state)
         dist = torch.distributions.Normal(mu,sigma)
         q_log_prob = dist.log_prob(action).sum(-1,keepdim=True).detach()
         approx_1 = self.args.beta * q_log_prob
-        approx_2 = torch.log(pi_prob) + self.empowerment(state)
+        approx_2 = log_prob + self.empowerment(state)
         loss = self.mse(approx_1,approx_2)
         return loss
     
@@ -61,7 +61,7 @@ class EAIRL(Discriminator):
         loss_q.backward()
         self.q_phi_optimizer.step()
         
-        loss_i = self.get_loss_i(agent_s,agent_next_s,agent_a,agent_prob)
+        loss_i = self.get_loss_i(agent_s,agent_next_s,agent_a,agent_log_prob)
         self.empowerment_optimizer.zero_grad()
         loss_i.backward()
         self.empowerment_optimizer.step()
