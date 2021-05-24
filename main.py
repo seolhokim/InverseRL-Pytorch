@@ -144,7 +144,7 @@ else : #off-policy
         while not done:
             if args.render:    
                 env.render()
-            action_, _ = agent.get_action(torch.from_numpy(state).float().to(device))
+            action_, log_prob = agent.get_action(torch.from_numpy(state).float().to(device))
             action = action_.cpu().detach().numpy()
             next_state, r, done, info = env.step(action)
             if discriminator_args.is_airl:
