@@ -69,8 +69,6 @@ class Agent(nn.Module):
             dist = torch.distributions.Normal(mu,sigma)
             expert_log_prob = dist.log_prob(expert_a).sum(-1,keepdim=True).detach()
             
-
-            
             discriminator.train_network(self.writer, n_epi, agent_s, agent_a, agent_next_s,\
                                           agent_log_prob, agent_done_mask, expert_s, expert_a, expert_next_s, expert_log_prob, expert_done_mask)
         if self.args.on_policy :

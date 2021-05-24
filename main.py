@@ -1,4 +1,5 @@
 from agents.algorithm.ppo    import PPO
+from agents.algorithm.sac    import SAC
 from agents.agent            import Agent
 
 from discriminators.gail     import GAIL
@@ -103,7 +104,7 @@ if agent_args.on_policy == True:
                                                               torch.tensor(done).view(1,1)\
                                                  ).item()
             else:
-                reward = discriminator.get_reward(torch.tensor(state).unsqueeze(0).float().to(device),action.unsqueeze(0)).item()
+                reward = discriminator.get_reward(torch.tensor(state).unsqueeze(0).float().to(device),action).item()
 
             transition = make_transition(state,\
                                          action,\
@@ -150,7 +151,7 @@ else : #off-policy
             if discriminator_args.is_airl:
                 reward = discriminator.get_reward(\
                             log_prob,
-                            torch.tensor(state).unsqueeze(0).float().to(device),action_.unsqueeze(0),\
+                            torch.tensor(state).unsqueeze(0).float().to(device),action_,\
                             torch.tensor(next_state).unsqueeze(0).float().to(device),\
                                                   torch.tensor(done).unsqueeze(0)\
                                                  ).item()
