@@ -9,12 +9,12 @@
 * VAIL(Variational Adversarial Imitation Learning)
 * AIRL(Adversarial Inverse Reinforcement Learning)
   * Two value functions can be merged into one.
-  * Suddenly Not Working
+  * Extremely unstable
 * VAIRL(Variational Adversarial Inverse Reinforcement Learning)
   * Joint gaussian distribution kl-divergence yet.
 * EAIRL(Empowerment-regularized Adversarial Inverse Reinforcement Learning)
   * Two value functions can be merged into one.
-  * Suddenly Not Working
+  * Extremely unstable
 ## TODO
 * add SQIL
 * add more environments(ant and disabled ant)
