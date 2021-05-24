@@ -78,9 +78,9 @@ if device == 'cuda':
 state_rms = RunningMeanStd(state_dim)
 
 score_lst = []
+discriminator_score_lst = []
 score = 0.0
-discriminator_score = 0.0
-
+discriminator_score = 0
 if agent_args.on_policy == True:
     state_lst = []
     state_ = (env.reset())
@@ -91,19 +91,20 @@ if agent_args.on_policy == True:
                 env.render()
             state_lst.append(state_)
             
-            action, log_prob = agent.get_action(torch.from_numpy(state).float().to(device))
+            action, log_prob = agent.get_action(torch.from_numpy(state).float().unsqueeze(0).to(device))
             
-            next_state_, r, done, info = env.step(action.unsqueeze(0).cpu().numpy())
+            next_state_, r, done, info = env.step(action.cpu().numpy())
             next_state = np.clip((next_state_ - state_rms.mean) / (state_rms.var ** 0.5 + 1e-8), -5, 5)
             if discriminator_args.is_airl:
                 reward = discriminator.get_reward(\
-                            log_prob,
-                            torch.tensor(state).unsqueeze(0).float().to(device),action.unsqueeze(0),\
-                            torch.tensor(next_state).unsqueeze(0).float().to(device),\
-                                                  torch.tensor(done).unsqueeze(0)\
+                                        log_prob,\
+                                        torch.tensor(state).unsqueeze(0).float().to(device),action,\
+                                        torch.tensor(next_state).unsqueeze(0).float().to(device),\
+                                                              torch.tensor(done).view(1,1)\
                                                  ).item()
             else:
                 reward = discriminator.get_reward(torch.tensor(state).unsqueeze(0).float().to(device),action.unsqueeze(0)).item()
+
             transition = make_transition(state,\
                                          action,\
                                          np.array([reward/10.0]),\
@@ -134,7 +135,6 @@ if agent_args.on_policy == True:
             score_lst = []
         if (n_epi % args.save_interval == 0 )& (n_epi != 0):
             torch.save(agent.state_dict(), './model_weights/model_'+str(n_epi))
-
 else : #off-policy
     for n_epi in range(args.epochs):
         score = 0.0
@@ -144,18 +144,18 @@ else : #off-policy
         while not done:
             if args.render:    
                 env.render()
-            action, _ = agent.get_action(torch.from_numpy(state).float().to(device))
-            action = action.cpu().detach().numpy()
+            action_, _ = agent.get_action(torch.from_numpy(state).float().to(device))
+            action = action_.cpu().detach().numpy()
             next_state, r, done, info = env.step(action)
             if discriminator_args.is_airl:
                 reward = discriminator.get_reward(\
                             log_prob,
-                            torch.tensor(state).unsqueeze(0).float().to(device),action.unsqueeze(0),\
+                            torch.tensor(state).unsqueeze(0).float().to(device),action_.unsqueeze(0),\
                             torch.tensor(next_state).unsqueeze(0).float().to(device),\
                                                   torch.tensor(done).unsqueeze(0)\
                                                  ).item()
             else:
-                reward = discriminator.get_reward(torch.tensor(state).unsqueeze(0).float().to(device),action.unsqueeze(0)).item()
+                reward = discriminator.get_reward(torch.tensor(state).unsqueeze(0).float().to(device),action_).item()
 
             transition = make_transition(state,\
                                          action,\
