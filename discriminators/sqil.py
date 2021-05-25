@@ -20,8 +20,8 @@ class SQIL(Discriminator):
         states = torch.cat((agent_s,expert_s),0)
         actions = torch.cat((agent_a,expert_a),0)
 
-        agent_r = torch.zeros((agent_s.shape[0],1))
-        expert_r = torch.ones((expert_s.shape[0],1))
+        agent_r = torch.zeros((agent_s.shape[0],1)).to(self.device)
+        expert_r = torch.ones((expert_s.shape[0],1)).to(self.device)
         rewards = torch.cat((agent_r,expert_r),0)
 
         next_states = torch.cat((agent_next_s,expert_next_s),0)
