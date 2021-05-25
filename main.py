@@ -7,6 +7,7 @@ from discriminators.vail     import VAIL
 from discriminators.airl     import AIRL
 from discriminators.vairl    import VAIRL
 from discriminators.eairl    import EAIRL
+from discriminators.sqil    import SQIL
 from utils.utils             import RunningMeanStd, Dict, make_transition
 
 from configparser            import ConfigParser
@@ -62,6 +63,8 @@ elif args.discriminator == 'vail':
     discriminator = VAIL(writer,device,state_dim, action_dim, discriminator_args)
 elif args.discriminator == 'eairl':
     discriminator = EAIRL(writer, device, state_dim, action_dim, discriminator_args)
+elif args.discriminator == 'sqil':
+    discriminator = SQIL(writer, device, state_dim, action_dim, discriminator_args)
 else:
     raise NotImplementedError
     
@@ -128,7 +131,7 @@ if agent_args.on_policy == True:
             else:
                 state = next_state
                 state_ = next_state_
-        agent.train(discriminator, discriminator_args.batch_size, state_rms, n_epi, airl = discriminator_args.is_airl)
+        agent.train(discriminator, discriminator_args.batch_size, state_rms, n_epi)
         state_rms.update(np.vstack(state_lst))
         state_lst = []
         if n_epi%args.print_interval==0 and n_epi!=0:
@@ -172,8 +175,7 @@ else : #off-policy
             discriminator_score += reward
             
             if agent.data.data_idx > agent_args.learn_start_size: 
-                agent.train(discriminator, discriminator_args.batch_size, state_rms, n_epi,\
-                            discriminator_args.is_airl, agent_args.batch_size)
+                agent.train(discriminator, discriminator_args.batch_size, state_rms, n_epi, agent_args.batch_size)
         score_lst.append(score)
         if args.tensorboard:
             writer.add_scalar("score/score", score, n_epi)

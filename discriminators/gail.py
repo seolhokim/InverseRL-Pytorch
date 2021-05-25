@@ -8,6 +8,7 @@ class GAIL(Discriminator):
         super(GAIL, self).__init__()
         self.writer = writer
         self.device = device
+        self.args = args
         self.network = Network(args.layer_num, state_dim+action_dim, 1, args.hidden_dim, args.activation_function,args.last_activation)
         self.criterion = nn.BCELoss()
         self.optimizer = torch.optim.Adam(self.parameters(), lr=args.lr)

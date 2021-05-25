@@ -16,6 +16,8 @@ class DiscriminatorBase(nn.Module,metaclass=ABCMeta):
 class Discriminator(DiscriminatorBase):
     def __init__(self):
         super(Discriminator, self).__init__()
+    def name(self):
+        return self.__class__.__name__.lower()
     def get_reward(self):
         pass
     def forward(self,x):

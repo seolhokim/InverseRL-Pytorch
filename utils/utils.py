@@ -2,19 +2,19 @@ import numpy as np
 import torch
 
 class Dict(dict):
-    def __init__(self,config,section_name,location = False):
-        super(Dict,self).__init__()
-        self.initialize(config, section_name,location)
-    def initialize(self, config, section_name,location):
+    def __init__(self, config, section_name, location = False):
+        super(Dict, self).__init__()
+        self.initialize(config, section_name, location)
+    def initialize(self, config, section_name, location):
         for key,value in config.items(section_name):
             if location :
                 self[key] = value
             else:
                 self[key] = eval(value)
-    def __getattr__(self,val):
+    def __getattr__(self, val):
         return self[val]
 
-def make_transition(state,action,reward,next_state,done,log_prob=None):
+def make_transition(state, action, reward, next_state, done, log_prob=None):
     transition = {}
     transition['state'] = state
     transition['action'] = action
@@ -30,7 +30,7 @@ def make_mini_batch(*value):
     full_indices = np.arange(full_batch_size)
     np.random.shuffle(full_indices)
     for i in range(full_batch_size // mini_batch_size):
-        indices = full_indices[mini_batch_size*i : mini_batch_size*(i+1)]
+        indices = full_indices[mini_batch_size * i : mini_batch_size * (i + 1)]
         yield [x[indices] for x in value[1:]]
         
 def make_one_mini_batch(*value):
@@ -104,7 +104,7 @@ class ReplayBuffer():
     def sample(self, shuffle, batch_size = None):
         if shuffle :
             sample_num = min(self.max_size, self.data_idx)
-            rand_idx = np.random.choice(sample_num, batch_size,replace=False)
+            rand_idx = np.random.choice(sample_num, batch_size, replace=False)
             sampled_data = {}
             sampled_data['state'] = self.data['state'][rand_idx]
             sampled_data['action'] = self.data['action'][rand_idx]
